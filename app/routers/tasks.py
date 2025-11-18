@@ -1,33 +1,47 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession # 👈 1. Меняем импорт сессии SQLAlchemy
 
 from app import schemas, crud
 from app.dependencies import get_current_user
-from app.database import get_db
+from app.database import get_async_db # 👈 2. Меняем импорт генератора зависимостей
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
+# -----------------------------------------------------------
+# 1. GET /tasks
+# -----------------------------------------------------------
 @router.get("", response_model=list[schemas.TaskRead])
-def list_tasks(
+async def list_tasks( # 👈 3. Функция стала async
     start: date = Query(...),
     end: date = Query(...),
     scope: str = Query("personal"),
     family_id: int | None = Query(default=None),
     current_user: schemas.UserRead = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
-    tasks = crud.list_tasks(db, current_user.id, start, end, scope, family_id)
+    """
+    Асинхронно возвращает список задач для заданного периода и области (личные/семейные).
+    """
+    # 5. Добавляем await перед вызовом асинхронной CRUD-функции
+    tasks = await crud.list_tasks(db, current_user.id, start, end, scope, family_id)
     return tasks
 
 
+# -----------------------------------------------------------
+# 2. POST /tasks
+# -----------------------------------------------------------
 @router.post("", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
-def create_task(
+async def create_task( # 👈 3. Функция стала async
     payload: schemas.TaskCreate,
     current_user: schemas.UserRead = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
-    task = crud.create_task(db, current_user.id, payload)
+    """
+    Асинхронное создание новой задачи.
+    """
+    # 5. Добавляем await перед вызовом асинхронной CRUD-функции
+    task = await crud.create_task(db, current_user.id, payload)
     return task

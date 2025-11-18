@@ -1,17 +1,21 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession # 👈 1. Меняем импорт сессии SQLAlchemy
 
 from app import schemas, crud
 from app.dependencies import get_current_user
-from app.database import get_db
+from app.database import get_async_db # 👈 2. Меняем импорт генератора зависимостей
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me", response_model=schemas.UserRead)
-def read_me(
+async def read_me( # 👈 3. Функция стала async
     current_user: schemas.UserRead = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
-    user = crud.get_user(db, current_user.id)
+    """
+    Асинхронно возвращает данные о текущем авторизованном пользователе.
+    """
+    # 5. Добавляем await перед вызовом асинхронной CRUD-функции
+    user = await crud.get_user(db, current_user.id)
     return user

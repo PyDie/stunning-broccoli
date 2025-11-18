@@ -1,97 +1,134 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession # 👈 1. Меняем импорт сессии
+from sqlalchemy import select, insert, delete, and_
+from sqlalchemy.orm import selectinload
 
 from app import schemas, crud, models
 from app.dependencies import get_current_user
-from app.database import get_db
+from app.database import get_async_db # 👈 2. Меняем импорт зависимости
 
 router = APIRouter(prefix="/families", tags=["families"])
 
-
+# -----------------------------------------------------------
+# 1. GET /families
+# -----------------------------------------------------------
 @router.get("", response_model=list[schemas.FamilyRead])
-def list_families(
+async def list_families( # 👈 3. Функция стала async
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
     """
-    Возвращает список семей через связь current_user.families.
-    В models.py у User.families тип Mapped[list[FamilyMembership]], 
-    поэтому нужно достать сами объекты Family из memberships.
+    Асинхронно возвращает список семей, в которых состоит текущий пользователь.
+    Для асинхронной загрузки связей используем selectinload.
     """
-    # Берем список членств (FamilyMembership)
-    memberships = current_user.families
-    # Извлекаем из них объекты Family
+    # 5. Переписываем логику, чтобы она использовала execute()
+    
+    # 5.1. Загружаем пользователя с его членством в семьях
+    # selectinload(User.families) загружает FamilyMembership за один запрос
+    user_stmt = select(models.User).where(models.User.id == current_user.id).options(
+        selectinload(models.User.families).selectinload(models.FamilyMembership.family)
+    )
+    user_result = await db.execute(user_stmt) # 👈 Асинхронное выполнение
+    
+    # Получаем обновленный объект User с загруженными связями
+    loaded_user = user_result.scalar_one()
+
+    # Берем список членств (FamilyMembership) из загруженного пользователя
+    memberships = loaded_user.families
+    
+    # Извлекаем из них объекты Family (эта часть остается синхронной, т.к. данные уже в памяти)
     return [m.family for m in memberships]
 
 
+# -----------------------------------------------------------
+# 2. POST /families
+# -----------------------------------------------------------
 @router.post("", response_model=schemas.FamilyRead, status_code=status.HTTP_201_CREATED)
-def create_family(
+async def create_family( # 👈 3. Функция стала async
     payload: schemas.FamilyCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
     """
-    Создание семьи. Генерируем invite_code, так как он обязателен в БД.
+    Асинхронное создание семьи и добавление создателя как owner.
     """
-    # Генерируем случайный код (например, первые 8 символов UUID)
     invite_code = str(uuid.uuid4())[:8]
     
+    # 5. Создание записи Family (можно использовать SQLAlchemy Core или ORM, тут ORM)
     new_family = models.Family(
         name=payload.name,
         owner_id=current_user.id,
         invite_code=invite_code
     )
     db.add(new_family)
-    db.commit()
-    db.refresh(new_family)
+    # 6. Асинхронный commit
+    await db.commit() 
     
-    # Создаем запись о членстве для создателя
+    # db.refresh(new_family)
+    # В асинхронном режиме refresh может быть сложным. 
+    # Лучше использовать selectinload или просто вернуть new_family, 
+    # если не нужны свежие автоматически сгенерированные поля, кроме ID.
+    
+    # 7. Создаем запись о членстве для создателя
     membership = models.FamilyMembership(
         user_id=current_user.id,
         family_id=new_family.id,
         role="owner"
     )
     db.add(membership)
-    db.commit()
-    
+    # 8. Второй асинхронный commit
+    await db.commit()
+    await db.refresh(new_family) # Refresh после commit для ID и других полей
+
     return new_family
 
 
+# -----------------------------------------------------------
+# 3. POST /families/{family_id}/join
+# -----------------------------------------------------------
 @router.post("/{family_id}/join", response_model=schemas.FamilyRead)
-def join_family(
+async def join_family( # 👈 3. Функция стала async
     family_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
     """
-    Вступление в семью по ID.
-    Используется при переходе по ссылке-приглашению.
+    Асинхронное вступление в семью по ID.
     """
-    # 1. Ищем семью
-    family = db.query(models.Family).filter(models.Family.id == family_id).first()
+    # 5. Ищем семью: используем select() и await db.execute()
+    family_stmt = select(models.Family).where(models.Family.id == family_id)
+    family_result = await db.execute(family_stmt)
+    family = family_result.scalar_one_or_none()
+    
     if not family:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Семья не найдена"
         )
 
-    # 2. Проверяем, не состоит ли уже (используем FamilyMembership)
-    existing_membership = db.query(models.FamilyMembership).filter_by(
-        family_id=family_id, 
-        user_id=current_user.id
-    ).first()
+    # 6. Проверяем, не состоит ли уже (используем select() с and_)
+    membership_stmt = select(models.FamilyMembership).where(
+        and_(
+            models.FamilyMembership.family_id == family_id, 
+            models.FamilyMembership.user_id == current_user.id
+        )
+    )
+    existing_membership_result = await db.execute(membership_stmt)
+    existing_membership = existing_membership_result.scalar_one_or_none()
     
     if existing_membership:
+        # Если уже состоит, просто возвращаем объект Family
         return family
 
-    # 3. Добавляем пользователя
+    # 7. Добавляем пользователя
     new_membership = models.FamilyMembership(
         user_id=current_user.id, 
         family_id=family_id, 
         role="member"
     )
     db.add(new_membership)
-    db.commit()
+    # 8. Асинхронный commit
+    await db.commit()
     
     return family

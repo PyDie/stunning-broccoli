@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------
+  # PostgreSQL Database Service
+  # ----------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      # Эти переменные используются для создания начальной БД и пользователя
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      # Для сохранения данных между перезапусками
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      # Открываем порт 5432, чтобы вы могли подключиться к БД локально
+      - "5432:5432"
+
+  # ----------------------------------------------------
+  # FastAPI Application Service
+  # ----------------------------------------------------
+  app:
+    build: . 
+    restart: always
+    environment:
+      # Передаем все критически важные переменные окружения, 
+      # включая новую ссылку на внутренний хост Docker
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      # ВАЖНО: хост 'db' - это имя сервиса PostgreSQL в сети Docker
+      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      # Остальные переменные Pydantic Settings
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db 
+
+# ----------------------------------------------------
+# Docker Volumes
+# ----------------------------------------------------
+volumes:
+  postgres_data:

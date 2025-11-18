@@ -14,8 +14,6 @@ from app.database import Base, engine
 from app.dependencies import get_current_user
 from app.routers import families, tasks, users
 
-Base.metadata.create_all(bind=engine)
-
 settings = get_settings()
 app = FastAPI(title="TGCalendar API", version="0.1.0")
 
