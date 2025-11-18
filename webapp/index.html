@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TGCalendar</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <div>
+        <h1>TGCalendar</h1>
+        <p class="subtitle">Личный и семейный календарь задач</p>
+      </div>
+      <div class="month-nav">
+        <button id="btn-prev-month" aria-label="Предыдущий месяц">←</button>
+        <span id="month-label"></span>
+        <button id="btn-next-month" aria-label="Следующий месяц">→</button>
+      </div>
+    </header>
+
+    <section class="scopes" id="scope-chips"></section>
+
+    <main class="layout">
+      <section class="calendar">
+        <div class="weekdays">
+          <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+        </div>
+        <div class="grid" id="calendar-grid"></div>
+      </section>
+
+      <section class="sidebar">
+        <div class="selected-date" id="selected-date"></div>
+        <ul class="task-list" id="task-list"></ul>
+
+        <form id="task-form" class="task-form">
+          <h2>Новая задача</h2>
+          <label>
+            Название
+            <input type="text" name="title" required />
+          </label>
+          <label>
+            Описание
+            <textarea name="description" rows="2"></textarea>
+          </label>
+          <div class="form-row">
+            <label>
+              Дата
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              Время
+              <input type="time" name="start_time" />
+            </label>
+          </div>
+          <label>
+            Тип
+            <select name="scope">
+              <option value="personal">Личное</option>
+              <option value="family">Семейное</option>
+            </select>
+          </label>
+          <label>
+            Семья
+            <select name="family_id" disabled>
+              <option value="">Не выбрана</option>
+            </select>
+          </label>
+          <button type="submit">Добавить</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <template id="task-item-template">
+    <li class="task-item">
+      <div class="task-item__title"></div>
+      <div class="task-item__meta"></div>
+    </li>
+  </template>
+  <div id="family-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Создать семью</h3>
+      <input type="text" id="new-family-name" placeholder="Название (например: Ивановы)" />
+      <div class="modal-actions">
+        <button id="btn-cancel-family" type="button">Отмена</button>
+        <button id="btn-save-family" type="button" class="primary">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
