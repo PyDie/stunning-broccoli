@@ -1,0 +1,24 @@
+# Python compilation files
+__pycache__/
+*.pyc
+
+# Local Database
+*.db
+data/*.db
+
+# Virtual Environment
+.venv/
+venv/
+
+# Dependency Management Files (если не используете Poetry)
+*.lock 
+
+# IDE Files (VS Code, Pycharm, etc)
+.vscode/
+.idea/
+
+# Operating System Files
+.DS_Store
+
+# Temporary / Package files
+*.egg-info/
