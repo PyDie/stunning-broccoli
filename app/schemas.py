@@ -36,6 +36,10 @@ class FamilyRead(BaseModel):
         from_attributes = True
 
 
+class FamilyJoin(BaseModel):
+    invite_code: str
+
+
 class TaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     description: Optional[str]

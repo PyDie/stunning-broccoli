@@ -87,48 +87,14 @@ async def create_family( # 👈 3. Функция стала async
 # -----------------------------------------------------------
 # 3. POST /families/{family_id}/join
 # -----------------------------------------------------------
-@router.post("/{family_id}/join", response_model=schemas.FamilyRead)
-async def join_family( # 👈 3. Функция стала async
-    family_id: int,
+@router.post("/join", response_model=schemas.FamilyRead)
+async def join_family_by_invite(
+    payload: schemas.FamilyJoin,
     current_user: models.User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Асинхронное вступление в семью по ID.
+    Вступление в семью по инвайт-коду (без перебора числовых ID).
     """
-    # 5. Ищем семью: используем select() и await db.execute()
-    family_stmt = select(models.Family).where(models.Family.id == family_id)
-    family_result = await db.execute(family_stmt)
-    family = family_result.scalar_one_or_none()
-    
-    if not family:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Семья не найдена"
-        )
-
-    # 6. Проверяем, не состоит ли уже (используем select() с and_)
-    membership_stmt = select(models.FamilyMembership).where(
-        and_(
-            models.FamilyMembership.family_id == family_id, 
-            models.FamilyMembership.user_id == current_user.id
-        )
-    )
-    existing_membership_result = await db.execute(membership_stmt)
-    existing_membership = existing_membership_result.scalar_one_or_none()
-    
-    if existing_membership:
-        # Если уже состоит, просто возвращаем объект Family
-        return family
-
-    # 7. Добавляем пользователя
-    new_membership = models.FamilyMembership(
-        user_id=current_user.id, 
-        family_id=family_id, 
-        role="member"
-    )
-    db.add(new_membership)
-    # 8. Асинхронный commit
-    await db.commit()
-    
+    family = await crud.add_user_to_family(db, current_user.id, payload.invite_code)
     return family

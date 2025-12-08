@@ -42,6 +42,11 @@ function formatISO(date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseISO(dateStr) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function monthBounds(date) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -58,6 +63,15 @@ function formatDateHuman(date) {
     day: "numeric",
     month: "long",
   });
+}
+
+function formatTimeRange(task) {
+  const start = task.start_time ? task.start_time.slice(0, 5) : null;
+  const end = task.end_time ? task.end_time.slice(0, 5) : null;
+  if (start && end) return `${start}–${end}`;
+  if (start) return start;
+  if (end) return end;
+  return null;
 }
 
 async function authenticate() {
@@ -136,14 +150,17 @@ function renderScopeChips() {
       syncFormScope(); // Важно обновить форму при переключении чипса
     });
     if (isScopeActive(scope) && scope.type === 'family') {
-        const shareBtn = document.createElement("button");
-        shareBtn.className = "share-btn";
-        shareBtn.innerHTML = "🔗"; // Или иконка
-        shareBtn.onclick = (e) => {
-            e.stopPropagation(); // Чтобы не кликнулся сам чипс
-            shareFamilyInvite(scope.familyId, scope.label);
-        };
-        chip.appendChild(shareBtn);
+      const shareBtn = document.createElement("button");
+      shareBtn.className = "share-btn";
+      shareBtn.innerHTML = "🔗"; // Или иконка
+      shareBtn.onclick = (e) => {
+        e.stopPropagation(); // Чтобы не кликнулся сам чипс
+        const family = state.families.find((f) => f.id === scope.familyId);
+        if (family) {
+          shareFamilyInvite(scope.familyId, scope.label, family.invite_code);
+        }
+      };
+      chip.appendChild(shareBtn);
     }
     ui.scopeChips.appendChild(chip);
     
@@ -211,10 +228,11 @@ function renderCalendar() {
       tasksForDay.slice(0, 2).forEach((task) => {
         const chip = document.createElement("div");
         chip.className = "day-task-chip";
-        if (task.start_time) {
+        const timeRange = formatTimeRange(task);
+        if (timeRange) {
           const time = document.createElement("span");
           time.className = "day-task-chip__time";
-          time.textContent = task.start_time.slice(0, 5);
+          time.textContent = timeRange;
           chip.appendChild(time);
         }
         const title = document.createElement("span");
@@ -263,7 +281,8 @@ function renderTaskList() {
       descEl.remove();
     }
     const meta = [];
-    if (task.start_time) meta.push(task.start_time.slice(0, 5));
+    const time = formatTimeRange(task);
+    if (time) meta.push(time);
     if (task.scope === "family" && task.family_id) {
       const family = state.families.find((f) => f.id === task.family_id);
       if (family) meta.push(family.name);
@@ -342,13 +361,13 @@ async function createFamily() {
   }
 }
 
-function shareFamilyInvite(familyId, familyName) {
+function shareFamilyInvite(familyId, familyName, inviteCode) {
   // ЗАМЕНИТЕ НА ВАШИ ДАННЫЕ ИЗ BOTFATHER
   const botUsername = "calendarbottestbot"; 
   const appName = "calendar"; // Short name вашего web app
   
   // Формируем startapp параметр
-  const startParam = `invite_${familyId}`;
+  const startParam = `invite_${inviteCode}`;
   
   // Полная ссылка на приложение
   const inviteLink = `https://t.me/${botUsername}/${appName}?startapp=${startParam}`;
@@ -368,14 +387,14 @@ async function checkInvite() {
   
   // Проверяем, есть ли параметр и начинается ли он с invite_
   if (startParam && startParam.startsWith("invite_")) {
-    const familyId = startParam.split("_")[1];
+    const inviteCode = startParam.split("_")[1];
     
-    if (familyId) {
-      const confirmJoin = confirm(`Вы хотите вступить в семью (ID: ${familyId})?`);
+    if (inviteCode) {
+      const confirmJoin = confirm(`Вступить по приглашению (код ${inviteCode})?`);
       if (!confirmJoin) return;
 
       try {
-        await apiFetch(`/families/${familyId}/join`, { method: "POST" });
+        await apiFetch(`/families/join`, { method: "POST", body: JSON.stringify({ invite_code: inviteCode }) });
         alert("Вы успешно вступили в семью!");
         // Перезагружаем список семей, чтобы новая семья появилась в списке
         await loadFamilies();
@@ -441,6 +460,10 @@ function setupListeners() {
     }
     payload.start_time = payload.start_time || null;
     payload.end_time = payload.end_time || null;
+    if (payload.start_time && payload.end_time && payload.end_time < payload.start_time) {
+      alert("Время окончания должно быть позже начала");
+      return;
+    }
 
     try {
       await apiFetch("/tasks", {
@@ -516,6 +539,11 @@ function renderKanban() {
       const taskId = event.dataTransfer.getData("taskId");
       if (taskId) moveTaskToDate(Number(taskId), key);
     });
+    column.addEventListener("click", (event) => {
+      if (event.target.closest(".kanban__add")) return;
+      setSelectedDateFromISO(key);
+      ui.taskForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
 
     const header = document.createElement("div");
     header.className = "kanban__column-header";
@@ -526,6 +554,15 @@ function renderKanban() {
     tasksForDay.sort(sortTasks);
     count.textContent = `${tasksForDay.length}`;
     header.appendChild(count);
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "kanban__add";
+    addBtn.textContent = "+";
+    addBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      quickAddTask(key);
+    });
+    header.appendChild(addBtn);
     column.appendChild(header);
 
     const list = document.createElement("div");
@@ -555,7 +592,8 @@ function renderKanban() {
       const meta = document.createElement("div");
       meta.className = "kanban-card__meta";
       const metaParts = [];
-      if (task.start_time) metaParts.push(task.start_time.slice(0, 5));
+      const time = formatTimeRange(task);
+      if (time) metaParts.push(time);
       if (task.scope === "family" && task.family_id) {
         const family = state.families.find((f) => f.id === task.family_id);
         if (family) metaParts.push(family.name);
@@ -597,6 +635,41 @@ async function moveTaskToDate(taskId, newDate) {
     state.taskMap[prevDate].sort(sortTasks);
     renderCurrentView();
   }
+}
+
+async function quickAddTask(dateISO) {
+  const title = prompt("Название задачи для " + dateISO);
+  if (!title) return;
+  const payload = {
+    title,
+    description: "",
+    date: dateISO,
+    scope: state.scope.type,
+    family_id: state.scope.familyId ?? null,
+    start_time: null,
+    end_time: null,
+  };
+  try {
+    if (payload.scope === "family" && !payload.family_id) {
+      alert("Выбери семейный календарь");
+      return;
+    }
+    await apiFetch("/tasks", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    await fetchTasks();
+    setSelectedDateFromISO(dateISO);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function setSelectedDateFromISO(dateISO) {
+  state.selectedDate = parseISO(dateISO);
+  syncFormDate();
+  renderTaskList();
+  renderCalendar();
 }
 
 function sortTasks(a, b) {
