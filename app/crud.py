@@ -7,7 +7,7 @@ from typing import Iterable, Optional
 
 # Меняем импорт сессии на асинхронную
 from sqlalchemy.ext.asyncio import AsyncSession 
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, delete
 # Session больше не нужна: from sqlalchemy.orm import Session 
 
 from app import schemas, models
@@ -89,9 +89,10 @@ async def get_family_by_id(db: AsyncSession, family_id: int) -> Optional[models.
 
 async def get_family_by_invite(db: AsyncSession, invite_code: str) -> Optional[models.Family]:
     """Асинхронное получение семьи по коду приглашения."""
-    # Нормализуем код: убираем пробелы и переводим в верхний регистр
-    normalized_code = invite_code.strip().upper()
-    stmt = select(models.Family).where(models.Family.invite_code == normalized_code)
+    # Нормализуем код: просто убираем пробелы
+    normalized_code = invite_code.strip()
+    # Используем ilike для регистронезависимого поиска
+    stmt = select(models.Family).where(models.Family.invite_code.ilike(normalized_code))
     # Использование .scalar_one_or_none() или .first() для получения объекта
     result = await db.execute(stmt)
     return result.scalar_one_or_none()

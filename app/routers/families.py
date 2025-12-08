@@ -131,5 +131,6 @@ async def leave_family(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error leaving family: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+                logger.error(f"Error leaving family: {e}")
+                # Return the actual error message for debugging
+                raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
