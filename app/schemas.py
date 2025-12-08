@@ -67,3 +67,5 @@ class TaskUpdate(BaseModel):
     date: Optional[date] = None
     start_time: Optional[time] = None
     end_time: Optional[time] = None
+    scope: Optional[str] = None
+    family_id: Optional[int] = None
