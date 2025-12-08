@@ -597,6 +597,10 @@ h1 {
   display: none;
 }
 
+.kanban {
+  overflow: auto;
+}
+
 .kanban__header {
   display: flex;
   align-items: center;
@@ -608,8 +612,11 @@ h1 {
   display: flex;
   gap: 12px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 8px;
   min-height: 0;
+  width: 100%;
+  flex-wrap: nowrap;
 }
 
 .kanban__board::-webkit-scrollbar,

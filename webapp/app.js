@@ -641,6 +641,7 @@ async function moveTaskToDate(taskId, newDate) {
       body: JSON.stringify({ date: newDate }),
     });
   } catch (error) {
+    console.error("Error updating task:", error);
     alert("Не удалось обновить задачу: " + error.message);
     // откат
     task.date = prevDate;
@@ -652,8 +653,10 @@ async function moveTaskToDate(taskId, newDate) {
 }
 
 async function quickAddTask(dateISO) {
+  console.log("Quick add task for date:", dateISO);
   const title = prompt("Название задачи для " + dateISO);
   if (!title) return;
+  
   const payload = {
     title,
     description: "",
@@ -663,6 +666,9 @@ async function quickAddTask(dateISO) {
     start_time: null,
     end_time: null,
   };
+  
+  console.log("Creating task with payload:", payload);
+  
   try {
     if (payload.scope === "family" && !payload.family_id) {
       alert("Выбери семейный календарь");
@@ -672,9 +678,11 @@ async function quickAddTask(dateISO) {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    console.log("Task created successfully");
     await fetchTasks();
     setSelectedDateFromISO(dateISO);
   } catch (error) {
+    console.error("Error creating task:", error);
     alert(error.message);
   }
 }
