@@ -8,6 +8,7 @@ from typing import Iterable, Optional
 # Меняем импорт сессии на асинхронную
 from sqlalchemy.ext.asyncio import AsyncSession 
 from sqlalchemy import select, and_, or_, delete
+from sqlalchemy.orm import selectinload
 # Session больше не нужна: from sqlalchemy.orm import Session 
 
 from app import schemas, models
@@ -99,10 +100,11 @@ async def get_family_by_invite(db: AsyncSession, invite_code: str) -> Optional[m
 
 
 async def is_member(db: AsyncSession, user_id: int, family_id: int) -> bool:
-    """Асинхронная проверка членства пользователя в семье."""
+    """Асинхронная проверка членства пользователя в семье (незаблокированного)."""
     stmt = select(models.FamilyMembership).where(
         models.FamilyMembership.user_id == user_id,
         models.FamilyMembership.family_id == family_id,
+        models.FamilyMembership.blocked == False,
     )
     # Используем .first() для быстрой проверки существования записи
     result = await db.execute(stmt)
@@ -110,7 +112,7 @@ async def is_member(db: AsyncSession, user_id: int, family_id: int) -> bool:
 
 
 async def list_user_families(db: AsyncSession, user_id: int) -> list[models.FamilyMembership]:
-    """Асинхронное получение всех записей о членстве пользователя в семьях."""
+    """Асинхронное получение всех записей о членстве пользователя в группах."""
     stmt = (
         select(models.FamilyMembership)
         .where(models.FamilyMembership.user_id == user_id)
@@ -150,6 +152,93 @@ async def remove_user_from_family(db: AsyncSession, user_id: int, family_id: int
     await db.commit()
 
 
+async def is_owner(db: AsyncSession, user_id: int, family_id: int) -> bool:
+    """Проверка, является ли пользователь владельцем семьи."""
+    family = await get_family_by_id(db, family_id)
+    return family is not None and family.owner_id == user_id
+
+
+async def list_family_members(
+    db: AsyncSession, 
+    family_id: int
+) -> list[models.FamilyMembership]:
+    """Получение списка всех участников семьи."""
+    stmt = (
+        select(models.FamilyMembership)
+        .where(models.FamilyMembership.family_id == family_id)
+        .options(selectinload(models.FamilyMembership.user))
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+async def block_family_member(
+    db: AsyncSession,
+    owner_id: int,
+    family_id: int,
+    member_user_id: int
+) -> None:
+    """Блокировка участника семьи (только для владельца)."""
+    if not await is_owner(db, owner_id, family_id):
+        raise PermissionError("Only owner can block members")
+    
+    if owner_id == member_user_id:
+        raise ValueError("Owner cannot block themselves")
+    
+    stmt = select(models.FamilyMembership).where(
+        models.FamilyMembership.family_id == family_id,
+        models.FamilyMembership.user_id == member_user_id
+    )
+    result = await db.execute(stmt)
+    membership = result.scalar_one_or_none()
+    
+    if not membership:
+        raise ValueError("Member not found")
+    
+    membership.blocked = True
+    await db.commit()
+
+
+async def unblock_family_member(
+    db: AsyncSession,
+    owner_id: int,
+    family_id: int,
+    member_user_id: int
+) -> None:
+    """Разблокировка участника семьи (только для владельца)."""
+    if not await is_owner(db, owner_id, family_id):
+        raise PermissionError("Only owner can unblock members")
+    
+    stmt = select(models.FamilyMembership).where(
+        models.FamilyMembership.family_id == family_id,
+        models.FamilyMembership.user_id == member_user_id
+    )
+    result = await db.execute(stmt)
+    membership = result.scalar_one_or_none()
+    
+    if not membership:
+        raise ValueError("Member not found")
+    
+    membership.blocked = False
+    await db.commit()
+
+
+async def remove_family_member(
+    db: AsyncSession,
+    owner_id: int,
+    family_id: int,
+    member_user_id: int
+) -> None:
+    """Удаление участника из семьи (только для владельца)."""
+    if not await is_owner(db, owner_id, family_id):
+        raise PermissionError("Only owner can remove members")
+    
+    if owner_id == member_user_id:
+        raise ValueError("Owner cannot remove themselves")
+    
+    await remove_user_from_family(db, member_user_id, family_id)
+
+
 # ----------------------------------------------------------------------
 # TASK FUNCTIONS
 # ----------------------------------------------------------------------
@@ -175,7 +264,7 @@ async def list_tasks(
         memberships = await list_user_families(db, user_id)
         family_ids = [m.family_id for m in memberships]
         
-        # Если семей нет, используем [0] для предотвращения пустого списка in_()
+        # Если групп нет, используем [0] для предотвращения пустого списка in_()
         # Но PostgreSQL/SQLAlchemy может потребовать явного where(False)
         family_filter = models.Task.family_id.in_(family_ids) if family_ids else False
 

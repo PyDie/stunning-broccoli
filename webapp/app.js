@@ -11,6 +11,7 @@ const state = {
   tasks: [],
   taskMap: {},
   viewMode: "calendar", // "calendar" | "kanban"
+  kanbanDaysCount: 7, // Количество дней для отображения в канбане (7, 14, 30 или 0 для всего месяца)
 };
 
 const ui = {
@@ -19,6 +20,7 @@ const ui = {
   calendarView: document.getElementById("calendar-view"),
   kanbanView: document.getElementById("kanban-view"),
   kanbanBoard: document.getElementById("kanban-board"),
+  kanbanDaysSelect: document.getElementById("kanban-days-select"),
   selectedDate: document.getElementById("selected-date"),
   taskList: document.getElementById("task-list"),
   scopeChips: document.getElementById("scope-chips"),
@@ -32,6 +34,13 @@ const ui = {
   inputFamilyName: document.getElementById("new-family-name"),
   btnSaveFamily: document.getElementById("btn-save-family"),
   btnCancelFamily: document.getElementById("btn-cancel-family"),
+  membersModal: document.getElementById("members-modal"),
+  membersModalTitle: document.getElementById("members-modal-title"),
+  membersList: document.getElementById("members-list"),
+  membersSearchInput: document.getElementById("members-search-input"),
+  btnCloseMembers: document.getElementById("btn-close-members"),
+  notificationsToggle: document.getElementById("notifications-toggle"),
+  testNotificationBtn: document.getElementById("test-notification-btn"),
 };
 
 function formatISO(date) {
@@ -150,31 +159,39 @@ function renderScopeChips() {
       syncFormScope(); // Важно обновить форму при переключении чипса
     });
     if (isScopeActive(scope) && scope.type === 'family') {
-      const shareBtn = document.createElement("button");
-      shareBtn.className = "share-btn";
-      shareBtn.innerHTML = "🔗"; // Или иконка
-      shareBtn.title = "Пригласить участника";
-      shareBtn.onclick = (e) => {
-        e.stopPropagation(); // Чтобы не кликнулся сам чипс
-        const family = state.families.find((f) => f.id === scope.familyId);
-        if (family) {
-          shareFamilyInvite(scope.familyId, scope.label, family.invite_code);
-        }
-      };
-      chip.appendChild(shareBtn);
+      const family = state.families.find((f) => f.id === scope.familyId);
+      if (family) {
+        // Проверяем, является ли пользователь владельцем (нужно будет добавить проверку)
+        const membersBtn = document.createElement("button");
+        membersBtn.className = "members-btn";
+        membersBtn.innerHTML = "👥";
+        membersBtn.title = "Участники группы";
+        membersBtn.onclick = (e) => {
+          e.stopPropagation();
+          openMembersModal(scope.familyId, scope.label);
+        };
+        chip.appendChild(membersBtn);
 
-      const leaveBtn = document.createElement("button");
-      leaveBtn.className = "leave-btn";
-      leaveBtn.innerHTML = "✕"; 
-      leaveBtn.title = "Покинуть семью";
-      leaveBtn.onclick = (e) => {
-        e.stopPropagation();
-        const family = state.families.find((f) => f.id === scope.familyId);
-        if (family) {
+        const shareBtn = document.createElement("button");
+        shareBtn.className = "share-btn";
+        shareBtn.innerHTML = "🔗";
+        shareBtn.title = "Пригласить участника";
+        shareBtn.onclick = (e) => {
+          e.stopPropagation();
+          shareFamilyInvite(scope.familyId, scope.label, family.invite_code);
+        };
+        chip.appendChild(shareBtn);
+
+        const leaveBtn = document.createElement("button");
+        leaveBtn.className = "leave-btn";
+        leaveBtn.innerHTML = "✕"; 
+        leaveBtn.title = "Покинуть группу";
+        leaveBtn.onclick = (e) => {
+          e.stopPropagation();
           leaveFamily(scope.familyId, family.name);
-        }
-      };
-      chip.appendChild(leaveBtn);
+        };
+        chip.appendChild(leaveBtn);
+      }
     }
     ui.scopeChips.appendChild(chip);
     
@@ -250,7 +267,12 @@ function renderCalendar() {
           chip.appendChild(time);
         }
         const title = document.createElement("span");
+        title.className = "day-task-chip__title";
         title.textContent = task.title;
+        // Добавляем tooltip для длинных заголовков
+        if (task.title.length > 30) {
+          chip.title = task.title;
+        }
         chip.appendChild(title);
         taskList.appendChild(chip);
       });
@@ -372,7 +394,7 @@ async function createFamily() {
       body: JSON.stringify({ name }),
     });
 
-    // Обновляем список семей и закрываем окно
+    // Обновляем список групп и закрываем окно
     await loadFamilies();
     closeFamilyModal();
   } catch (error) {
@@ -414,33 +436,180 @@ async function checkInvite() {
 
       try {
         await apiFetch(`/families/join`, { method: "POST", body: JSON.stringify({ invite_code: inviteCode }) });
-        alert("Вы успешно вступили в семью!");
-        // Перезагружаем список семей, чтобы новая семья появилась в списке
+        alert("Вы успешно вступили в группу!");
+        // Перезагружаем список групп, чтобы новая группа появилась в списке
         await loadFamilies();
       } catch (error) {
         console.error(error);
-        alert("Не удалось вступить в семью: " + error.message);
+        alert("Не удалось вступить в группу: " + error.message);
       }
     }
   }
 }
 
 async function leaveFamily(familyId, familyName) {
-  if (!confirm(`Вы действительно хотите покинуть семью "${familyName}"?`)) return;
+  if (!confirm(`Вы действительно хотите покинуть группу "${familyName}"?`)) return;
   try {
     await apiFetch(`/families/${familyId}/leave`, { method: "DELETE" });
-    alert(`Вы покинули семью "${familyName}"`);
+    alert(`Вы покинули группу "${familyName}"`);
     
-    // Если мы были в этой семье, переключаемся на личное
+    // Если мы были в этой группе, переключаемся на личное
     if (state.scope.type === "family" && Number(state.scope.familyId) === Number(familyId)) {
         state.scope = { type: "personal", familyId: null };
         syncFormScope();
     }
     
     await loadFamilies();
-    await fetchTasks(); // Перезагружаем задачи, т.к. семейные больше недоступны
+    await fetchTasks(); // Перезагружаем задачи, т.к. групповые больше недоступны
   } catch (error) {
-    alert("Не удалось покинуть семью: " + error.message);
+    alert("Не удалось покинуть группу: " + error.message);
+  }
+}
+
+let currentFamilyMembers = [];
+let currentFamilyId = null;
+
+async function openMembersModal(familyId, familyName) {
+  currentFamilyId = familyId;
+  ui.membersModalTitle.textContent = `Участники группы "${familyName}"`;
+  ui.membersModal.classList.remove("hidden");
+  ui.membersSearchInput.value = "";
+  await loadFamilyMembers(familyId);
+}
+
+function closeMembersModal() {
+  ui.membersModal.classList.add("hidden");
+  currentFamilyMembers = [];
+  currentFamilyId = null;
+}
+
+async function loadFamilyMembers(familyId) {
+  try {
+    const members = await apiFetch(`/families/${familyId}/members`);
+    currentFamilyMembers = members;
+    renderMembersList(members);
+  } catch (error) {
+    alert("Не удалось загрузить участников: " + error.message);
+  }
+}
+
+function renderMembersList(members, searchQuery = "") {
+  ui.membersList.innerHTML = "";
+  
+  const filtered = searchQuery
+    ? members.filter(m => {
+        const name = `${m.first_name || ""} ${m.last_name || ""} ${m.username || ""}`.toLowerCase();
+        return name.includes(searchQuery.toLowerCase());
+      })
+    : members;
+  
+  if (filtered.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "members-empty";
+    empty.textContent = searchQuery ? "Участники не найдены" : "Нет участников";
+    ui.membersList.appendChild(empty);
+    return;
+  }
+  
+  filtered.forEach(member => {
+    const item = document.createElement("div");
+    item.className = `member-item ${member.blocked ? "blocked" : ""}`;
+    
+    // Аватар (простой круг с первой буквой имени)
+    const avatar = document.createElement("div");
+    avatar.className = "member-avatar";
+    const initial = (member.first_name?.[0] || member.username?.[0] || "?").toUpperCase();
+    avatar.textContent = initial;
+    item.appendChild(avatar);
+    
+    // Информация о пользователе
+    const info = document.createElement("div");
+    info.className = "member-info";
+    const name = document.createElement("div");
+    name.className = "member-name";
+    const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ") || member.username || `ID: ${member.user_id}`;
+    name.textContent = fullName;
+    info.appendChild(name);
+    
+    if (member.username) {
+      const username = document.createElement("div");
+      username.className = "member-username";
+      username.textContent = `@${member.username}`;
+      info.appendChild(username);
+    }
+    
+    const role = document.createElement("div");
+    role.className = "member-role";
+    role.textContent = member.role === "owner" ? "Создатель" : "Участник";
+    if (member.blocked) {
+      role.textContent += " (заблокирован)";
+    }
+    info.appendChild(role);
+    
+    item.appendChild(info);
+    
+    // Кнопки действий (только для владельца и не для себя)
+    const actions = document.createElement("div");
+    actions.className = "member-actions";
+    
+    // Проверяем, является ли текущий пользователь владельцем
+    // (нужно будет добавить проверку через API или хранить в state)
+    if (member.role === "owner") {
+      const ownerBadge = document.createElement("span");
+      ownerBadge.className = "owner-badge";
+      ownerBadge.textContent = "Создатель";
+      actions.appendChild(ownerBadge);
+    } else {
+      // Кнопка блокировки/разблокировки
+      const blockBtn = document.createElement("button");
+      blockBtn.className = "member-action-btn";
+      blockBtn.textContent = member.blocked ? "Разблокировать" : "Заблокировать";
+      blockBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleBlockMember(member.user_id, member.blocked);
+      };
+      actions.appendChild(blockBtn);
+      
+      // Кнопка удаления
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "member-action-btn member-action-btn-danger";
+      deleteBtn.textContent = "Удалить";
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        removeMember(member.user_id, fullName);
+      };
+      actions.appendChild(deleteBtn);
+    }
+    
+    item.appendChild(actions);
+    ui.membersList.appendChild(item);
+  });
+}
+
+async function toggleBlockMember(userId, isBlocked) {
+  const action = isBlocked ? "unblock" : "block";
+  const confirmText = isBlocked 
+    ? "Разблокировать участника?"
+    : "Заблокировать участника? Он не сможет видеть задачи группы.";
+  
+  if (!confirm(confirmText)) return;
+  
+  try {
+    await apiFetch(`/families/${currentFamilyId}/members/${userId}/${action}`, { method: "POST" });
+    await loadFamilyMembers(currentFamilyId);
+  } catch (error) {
+    alert("Ошибка: " + error.message);
+  }
+}
+
+async function removeMember(userId, memberName) {
+  if (!confirm(`Вы действительно хотите удалить "${memberName}" из группы?`)) return;
+  
+  try {
+    await apiFetch(`/families/${currentFamilyId}/members/${userId}`, { method: "DELETE" });
+    await loadFamilyMembers(currentFamilyId);
+  } catch (error) {
+    alert("Ошибка: " + error.message);
   }
 }
 
@@ -466,6 +635,24 @@ function setupListeners() {
   ui.btnCancelFamily.addEventListener("click", closeFamilyModal);
   
   ui.btnSaveFamily.addEventListener("click", createFamily);
+
+  // Модальное окно участников
+  if (ui.btnCloseMembers) {
+    ui.btnCloseMembers.addEventListener("click", closeMembersModal);
+  }
+  
+  if (ui.membersModal) {
+    ui.membersModal.addEventListener("click", (e) => {
+      if (e.target === ui.membersModal) closeMembersModal();
+    });
+  }
+  
+  // Поиск участников
+  if (ui.membersSearchInput) {
+    ui.membersSearchInput.addEventListener("input", (e) => {
+      renderMembersList(currentFamilyMembers, e.target.value);
+    });
+  }
 
   // Закрытие по клику вне окна (опционально)
   ui.familyModal.addEventListener("click", (e) => {
@@ -493,7 +680,7 @@ function setupListeners() {
     payload.scope = payload.scope || "personal";
     payload.family_id = payload.family_id ? Number(payload.family_id) : null;
     if (payload.scope === "family" && !payload.family_id) {
-      alert("Выбери семейный календарь");
+      alert("Выбери групповой календарь");
       return;
     }
     payload.start_time = payload.start_time || null;
@@ -531,6 +718,72 @@ function setupListeners() {
       renderKanban();
     }
   });
+
+  // Настройка количества дней в канбане
+  if (ui.kanbanDaysSelect) {
+    ui.kanbanDaysSelect.value = state.kanbanDaysCount;
+    ui.kanbanDaysSelect.addEventListener("change", (event) => {
+      state.kanbanDaysCount = parseInt(event.target.value, 10);
+      renderKanban();
+    });
+  }
+
+  // Настройки уведомлений
+  if (ui.notificationsToggle) {
+    loadNotificationSettings();
+    ui.notificationsToggle.addEventListener("change", async (event) => {
+      await updateNotificationSettings(event.target.checked);
+    });
+  }
+
+  if (ui.testNotificationBtn) {
+    ui.testNotificationBtn.addEventListener("click", sendTestNotification);
+  }
+}
+
+async function loadNotificationSettings() {
+  try {
+    const user = await apiFetch("/users/me");
+    if (ui.notificationsToggle) {
+      ui.notificationsToggle.checked = user.telegram_notifications_enabled ?? true;
+    }
+  } catch (error) {
+    console.error("Ошибка загрузки настроек уведомлений:", error);
+  }
+}
+
+async function updateNotificationSettings(enabled) {
+  try {
+    await apiFetch("/users/me/notifications", {
+      method: "PATCH",
+      body: JSON.stringify({ telegram_notifications_enabled: enabled }),
+    });
+  } catch (error) {
+    alert("Ошибка обновления настроек: " + error.message);
+    // Откатываем изменение
+    if (ui.notificationsToggle) {
+      ui.notificationsToggle.checked = !enabled;
+    }
+  }
+}
+
+async function sendTestNotification() {
+  if (ui.testNotificationBtn) {
+    ui.testNotificationBtn.disabled = true;
+    ui.testNotificationBtn.textContent = "Отправка...";
+  }
+  
+  try {
+    await apiFetch("/users/me/notifications/test", { method: "POST" });
+    alert("Тестовое уведомление отправлено! Проверьте Telegram.");
+  } catch (error) {
+    alert("Ошибка отправки тестового уведомления: " + error.message);
+  } finally {
+    if (ui.testNotificationBtn) {
+      ui.testNotificationBtn.disabled = false;
+      ui.testNotificationBtn.textContent = "Отправить тестовое уведомление";
+    }
+  }
 }
 
 function renderCurrentView() {
@@ -557,9 +810,26 @@ function buildMonthDays() {
   return days;
 }
 
+function buildKanbanDays() {
+  if (state.kanbanDaysCount === 0) {
+    // Показать весь месяц
+    return buildMonthDays();
+  }
+  
+  // Показать определенное количество дней, начиная с сегодня или выбранной даты
+  const startDate = new Date(state.selectedDate);
+  const days = [];
+  for (let i = 0; i < state.kanbanDaysCount; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    days.push(date);
+  }
+  return days;
+}
+
 function renderKanban() {
   ui.kanbanBoard.innerHTML = "";
-  const days = buildMonthDays();
+  const days = buildKanbanDays();
   days.forEach((day) => {
     const key = formatISO(day);
     const column = document.createElement("div");
@@ -620,6 +890,10 @@ function renderKanban() {
       const title = document.createElement("div");
       title.className = "kanban-card__title";
       title.textContent = task.title;
+      // Добавляем tooltip для длинных заголовков
+      if (task.title.length > 50) {
+        card.title = task.title;
+      }
       card.appendChild(title);
 
       if (task.description) {

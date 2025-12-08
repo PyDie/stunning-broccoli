@@ -19,9 +19,14 @@ class UserRead(BaseModel):
     first_name: Optional[str]
     last_name: Optional[str]
     username: Optional[str]
+    telegram_notifications_enabled: bool = True
 
     class Config:
         from_attributes = True
+
+
+class NotificationSettingsUpdate(BaseModel):
+    telegram_notifications_enabled: bool
 
 
 class FamilyCreate(BaseModel):
@@ -39,6 +44,18 @@ class FamilyRead(BaseModel):
 
 class FamilyJoin(BaseModel):
     invite_code: str
+
+
+class FamilyMemberRead(BaseModel):
+    user_id: int
+    first_name: Optional[str]
+    last_name: Optional[str]
+    username: Optional[str]
+    role: str
+    blocked: bool
+
+    class Config:
+        from_attributes = True
 
 
 class TaskBase(BaseModel):

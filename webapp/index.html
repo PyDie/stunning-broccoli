@@ -24,7 +24,7 @@
     <header class="app__header">
       <div>
         <h1>TGCalendar</h1>
-        <p class="subtitle">Личный и семейный календарь задач</p>
+        <p class="subtitle">Личный и групповой календарь задач</p>
       </div>
       <div class="header-controls">
         <div class="month-nav">
@@ -53,6 +53,17 @@
         <div class="kanban__header">
           <div>
             <p class="subtitle">Перетаскивай задачи между днями</p>
+          </div>
+          <div class="kanban__controls">
+            <label class="kanban__days-select-label">
+              Дней:
+              <select id="kanban-days-select" class="kanban__days-select">
+                <option value="7">7</option>
+                <option value="14">14</option>
+                <option value="30">30</option>
+                <option value="0">Весь месяц</option>
+              </select>
+            </label>
           </div>
         </div>
         <div class="kanban__board" id="kanban-board" aria-live="polite"></div>
@@ -90,17 +101,28 @@
             Тип
             <select name="scope">
               <option value="personal">Личное</option>
-              <option value="family">Семейное</option>
+              <option value="family">Групповое</option>
             </select>
           </label>
           <label>
-            Семья
+            Группа
             <select name="family_id" disabled>
               <option value="">Не выбрана</option>
             </select>
           </label>
           <button type="submit">Добавить</button>
         </form>
+
+        <div class="settings-section">
+          <h3>Настройки уведомлений</h3>
+          <label class="settings-toggle">
+            <input type="checkbox" id="notifications-toggle" />
+            <span>Telegram-уведомления</span>
+          </label>
+          <button type="button" id="test-notification-btn" class="test-notification-btn">
+            Отправить тестовое уведомление
+          </button>
+        </div>
       </section>
     </main>
   </div>
@@ -115,11 +137,24 @@
   </template>
   <div id="family-modal" class="modal hidden">
     <div class="modal-content">
-      <h3>Создать семью</h3>
+      <h3>Создать группу</h3>
       <input type="text" id="new-family-name" placeholder="Название (например: Ивановы)" />
       <div class="modal-actions">
         <button id="btn-cancel-family" type="button">Отмена</button>
         <button id="btn-save-family" type="button" class="primary">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="members-modal" class="modal hidden">
+    <div class="modal-content modal-content-large">
+      <h3 id="members-modal-title">Участники группы</h3>
+      <div class="members-search">
+        <input type="text" id="members-search-input" placeholder="Поиск участников..." />
+      </div>
+      <div class="members-list" id="members-list"></div>
+      <div class="modal-actions">
+        <button id="btn-close-members" type="button" class="primary">Закрыть</button>
       </div>
     </div>
   </div>

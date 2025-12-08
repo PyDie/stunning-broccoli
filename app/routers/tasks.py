@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession # 👈 1. Меняем импорт сессии SQLAlchemy
 
-from app import schemas, crud
+from app import schemas, crud, models, notifications
 from app.dependencies import get_current_user
 from app.database import get_async_db # 👈 2. Меняем импорт генератора зависимостей
 
@@ -23,7 +23,7 @@ async def list_tasks( # 👈 3. Функция стала async
     db: AsyncSession = Depends(get_async_db), # 👈 4. Используем AsyncSession и get_async_db
 ):
     """
-    Асинхронно возвращает список задач для заданного периода и области (личные/семейные).
+    Асинхронно возвращает список задач для заданного периода и области (личные/групповые).
     """
     # 5. Добавляем await перед вызовом асинхронной CRUD-функции
     tasks = await crud.list_tasks(db, current_user.id, start, end, scope, family_id)
@@ -44,6 +44,15 @@ async def create_task( # 👈 3. Функция стала async
     """
     # 5. Добавляем await перед вызовом асинхронной CRUD-функции
     task = await crud.create_task(db, current_user.id, payload)
+    
+    # Отправляем уведомление о создании задачи
+    await notifications.notify_task_created(
+        user_id=current_user.id,
+        task_title=task.title,
+        task_date=str(task.date),
+        db=db
+    )
+    
     return task
 
 
@@ -55,7 +64,17 @@ async def update_task(
     db: AsyncSession = Depends(get_async_db),
 ):
     try:
-        return await crud.update_task(db, current_user.id, task_id, payload)
+        task = await crud.update_task(db, current_user.id, task_id, payload)
+        
+        # Отправляем уведомление об обновлении задачи
+        await notifications.notify_task_updated(
+            user_id=current_user.id,
+            task_title=task.title,
+            task_date=str(task.date),
+            db=db
+        )
+        
+        return task
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:
@@ -69,7 +88,19 @@ async def delete_task(
     db: AsyncSession = Depends(get_async_db),
 ):
     try:
+        # Получаем задачу перед удалением для уведомления
+        task = await db.get(models.Task, task_id)
+        task_title = task.title if task else "Задача"
+        
         await crud.delete_task(db, current_user.id, task_id)
+        
+        # Отправляем уведомление об удалении задачи
+        if task:
+            await notifications.notify_task_deleted(
+                user_id=current_user.id,
+                task_title=task_title,
+                db=db
+            )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ValueError as exc:

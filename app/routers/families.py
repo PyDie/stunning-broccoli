@@ -21,10 +21,10 @@ async def list_families(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Асинхронно возвращает список семей, в которых состоит текущий пользователь.
+    Асинхронно возвращает список групп, в которых состоит текущий пользователь.
     Для асинхронной загрузки связей используем selectinload.
     """
-    # Загружаем пользователя с его членством в семьях
+    # Загружаем пользователя с его членством в группах
     # selectinload(User.families) загружает FamilyMembership за один запрос
     user_stmt = select(models.User).where(models.User.id == current_user.id).options(
         selectinload(models.User.families).selectinload(models.FamilyMembership.family)
@@ -134,3 +134,102 @@ async def leave_family(
                 logger.error(f"Error leaving family: {e}")
                 # Return the actual error message for debugging
                 raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+# -----------------------------------------------------------
+# 5. GET /families/{family_id}/members
+# -----------------------------------------------------------
+@router.get("/{family_id}/members", response_model=list[schemas.FamilyMemberRead])
+async def list_family_members(
+    family_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Получение списка участников семьи.
+    """
+    # Проверяем, что пользователь является участником
+    if not await crud.is_member(db, current_user.id, family_id):
+        raise HTTPException(status_code=404, detail="Family not found or access denied")
+    
+    memberships = await crud.list_family_members(db, family_id)
+    
+    # Преобразуем в формат для ответа
+    result = []
+    for membership in memberships:
+        result.append(schemas.FamilyMemberRead(
+            user_id=membership.user.id,
+            first_name=membership.user.first_name,
+            last_name=membership.user.last_name,
+            username=membership.user.username,
+            role=membership.role,
+            blocked=membership.blocked
+        ))
+    
+    return result
+
+
+# -----------------------------------------------------------
+# 6. POST /families/{family_id}/members/{user_id}/block
+# -----------------------------------------------------------
+@router.post("/{family_id}/members/{user_id}/block", status_code=status.HTTP_204_NO_CONTENT)
+async def block_family_member(
+    family_id: int,
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Блокировка участника семьи (только для владельца).
+    """
+    try:
+        await crud.block_family_member(db, current_user.id, family_id, user_id)
+        return None
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Only owner can block members")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -----------------------------------------------------------
+# 7. POST /families/{family_id}/members/{user_id}/unblock
+# -----------------------------------------------------------
+@router.post("/{family_id}/members/{user_id}/unblock", status_code=status.HTTP_204_NO_CONTENT)
+async def unblock_family_member(
+    family_id: int,
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Разблокировка участника семьи (только для владельца).
+    """
+    try:
+        await crud.unblock_family_member(db, current_user.id, family_id, user_id)
+        return None
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Only owner can unblock members")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -----------------------------------------------------------
+# 8. DELETE /families/{family_id}/members/{user_id}
+# -----------------------------------------------------------
+@router.delete("/{family_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_family_member(
+    family_id: int,
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Удаление участника из семьи (только для владельца).
+    """
+    try:
+        await crud.remove_family_member(db, current_user.id, family_id, user_id)
+        return None
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Only owner can remove members")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

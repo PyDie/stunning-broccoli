@@ -17,6 +17,7 @@ class User(Base):
     first_name: Mapped[str | None] = mapped_column(String(64))
     last_name: Mapped[str | None] = mapped_column(String(64))
     username: Mapped[str | None] = mapped_column(String(64))
+    telegram_notifications_enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     families: Mapped[list[FamilyMembership]] = relationship("FamilyMembership", back_populates="user")
     tasks: Mapped[list[Task]] = relationship("Task", back_populates="owner")
@@ -43,6 +44,7 @@ class FamilyMembership(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     family_id: Mapped[int] = mapped_column(ForeignKey("families.id"), nullable=False)
     role: Mapped[str] = mapped_column(String(20), default="member")
+    blocked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     user: Mapped[User] = relationship("User", back_populates="families")
     family: Mapped[Family] = relationship("Family", back_populates="members")

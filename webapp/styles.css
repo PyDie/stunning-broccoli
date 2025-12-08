@@ -251,8 +251,16 @@ h1 {
   font-size: 0.8rem;
   color: var(--tg-theme-hint-color, #555);
   overflow: hidden;
+  max-width: 100%;
+  position: relative;
+}
+
+.day-task-chip__title {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .day-task-chip__time {
@@ -375,6 +383,8 @@ h1 {
   flex: 1;
   min-height: 0;
   scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
 
   /* Scroll indicators (shadows) */
   background:
@@ -406,6 +416,37 @@ h1 {
 .kanban__column.drop-target {
   border-color: var(--accent);
   background: rgba(76, 111, 255, 0.08);
+}
+
+.kanban__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.kanban__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban__days-select-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--tg-theme-hint-color, #666);
+}
+
+.kanban__days-select {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--tg-theme-bg-color, #fff);
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .kanban__column-header {
@@ -458,6 +499,10 @@ h1 {
   font-weight: 600;
   font-size: 0.95rem;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .kanban-card__description {
@@ -795,6 +840,189 @@ h1 {
 }
 .share-btn:hover {
   background-color: rgba(255,255,255,0.5);
+}
+
+.members-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 5px;
+  background-color: rgba(255,255,255,0.3);
+  border-radius: 4px;
+  margin-left: 2px;
+}
+
+.members-btn:hover {
+  background-color: rgba(255,255,255,0.5);
+}
+
+.modal-content-large {
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.members-search {
+  margin: 12px 0;
+}
+
+.members-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.members-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 200px;
+  max-height: 400px;
+}
+
+.members-empty {
+  text-align: center;
+  color: var(--tg-theme-hint-color, #666);
+  padding: 20px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--tg-theme-secondary-bg-color, #f4f6ff);
+  border: 1px solid var(--border);
+}
+
+.member-item.blocked {
+  opacity: 0.6;
+}
+
+.member-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.member-username {
+  font-size: 0.85rem;
+  color: var(--tg-theme-hint-color, #666);
+  margin-bottom: 2px;
+}
+
+.member-role {
+  font-size: 0.8rem;
+  color: var(--tg-theme-hint-color, #888);
+}
+
+.member-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.member-action-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--tg-theme-bg-color, #fff);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.member-action-btn:hover {
+  background: var(--tg-theme-secondary-bg-color, #f4f6ff);
+}
+
+.member-action-btn-danger {
+  color: #b3261e;
+  border-color: rgba(179, 38, 30, 0.3);
+}
+
+.member-action-btn-danger:hover {
+  background: rgba(179, 38, 30, 0.1);
+}
+
+.owner-badge {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(76, 111, 255, 0.1);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.settings-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-section h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.settings-toggle input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.test-notification-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--tg-theme-secondary-bg-color, #f4f6ff);
+  color: var(--tg-theme-text-color, #333);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.test-notification-btn:hover {
+  background: rgba(76, 111, 255, 0.1);
+}
+
+.test-notification-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 

@@ -64,7 +64,7 @@ async def cmd_start(message: Message):
         resize_keyboard=True,
     )
     await message.answer(
-        "Привет! Я помогу вести личные и семейные планы. "
+        "Привет! Я помогу вести личные и групповые планы. "
         "Открой мини-приложение, чтобы увидеть календарь.",
         reply_markup=keyboard,
     )
@@ -76,10 +76,10 @@ async def cmd_families(message: Message):
         memberships = crud.list_user_families(db, message.from_user.id)
 
     if not memberships:
-        await message.answer("Ты пока не в семейных календарях. Создай или присоединись!")
+        await message.answer("Ты пока не в групповых календарях. Создай или присоединись!")
         return
 
-    lines = ["Твои семьи:"]
+    lines = ["Твои группы:"]
     for membership in memberships:
         lines.append(
             f"• {membership.family.name} — код: `{membership.family.invite_code}`"
@@ -98,7 +98,7 @@ async def cmd_family_create(message: Message, command: CommandObject):
     with session_scope() as db:
         family = crud.create_family(db, owner_id=message.from_user.id, name=name)
     await message.answer(
-        f"Семейный календарь *{family.name}* создан! Поделись кодом `{family.invite_code}`",
+        f"Групповой календарь *{family.name}* создан! Поделись кодом `{family.invite_code}`",
         parse_mode="Markdown",
     )
 
