@@ -136,7 +136,7 @@ h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+  grid-template-columns: 1fr;
   gap: 12px;
   flex: 1;
   min-height: 0; /* позволяет внутренним блокам ужиматься без прокрутки body */
@@ -404,10 +404,10 @@ h1 {
   }
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 1100px) {
   .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+    grid-template-rows: auto;
   }
 }
 
@@ -540,7 +540,7 @@ h1 {
 }
 
 .kanban__column {
-  min-width: 220px;
+  min-width: 180px;
   background: linear-gradient(180deg, rgba(76,111,255,0.05), rgba(255,255,255,0.9));
   border-radius: 16px;
   padding: 12px;

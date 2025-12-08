@@ -64,9 +64,9 @@ class TaskRead(TaskBase):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    date: Optional[date] = None
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
+    date: date | str | None = None
+    start_time: time | str | None = None
+    end_time: time | str | None = None
 
     @field_validator("date", mode="before")
     def parse_date(cls, v):
