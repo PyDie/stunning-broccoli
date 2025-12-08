@@ -53,6 +53,15 @@ async def create_or_update_user(db: AsyncSession, payload: schemas.UserCreate) -
     return user
 
 
+async def enable_user_notifications(db: AsyncSession, user_id: int) -> None:
+    """Включение уведомлений для пользователя."""
+    user = await get_user(db, user_id)
+    if user and not user.telegram_notifications_enabled:
+        user.telegram_notifications_enabled = True
+        await db.commit()
+        await db.refresh(user)
+
+
 # ----------------------------------------------------------------------
 # FAMILY FUNCTIONS
 # ----------------------------------------------------------------------

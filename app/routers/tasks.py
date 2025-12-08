@@ -42,8 +42,12 @@ async def create_task( # 👈 3. Функция стала async
     """
     Асинхронное создание новой задачи.
     """
-    # 5. Добавляем await перед вызовом асинхронной CRUD-функции
+    # Создаем задачу
     task = await crud.create_task(db, current_user.id, payload)
+    
+    # Если выбраны уведомления (за день или за час), автоматически включаем уведомления для пользователя
+    if payload.notify_before_days or payload.notify_before_hours:
+        await crud.enable_user_notifications(db, current_user.id)
     
     # Отправляем уведомление о создании задачи
     await notifications.notify_task_created(
@@ -65,6 +69,10 @@ async def update_task(
 ):
     try:
         task = await crud.update_task(db, current_user.id, task_id, payload)
+        
+        # Если выбраны уведомления (за день или за час), автоматически включаем уведомления для пользователя
+        if payload.notify_before_days or payload.notify_before_hours:
+            await crud.enable_user_notifications(db, current_user.id)
         
         # Отправляем уведомление об обновлении задачи
         await notifications.notify_task_updated(

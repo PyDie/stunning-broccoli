@@ -42,7 +42,6 @@ const ui = {
   membersList: document.getElementById("members-list"),
   membersSearchInput: document.getElementById("members-search-input"),
   btnCloseMembers: document.getElementById("btn-close-members"),
-  notificationsToggle: document.getElementById("notifications-toggle"),
 };
 
 function formatISO(date) {
@@ -788,15 +787,6 @@ function setupListeners() {
     });
   }
 
-  // Настройки уведомлений
-  if (ui.notificationsToggle) {
-    loadNotificationSettings();
-    ui.notificationsToggle.addEventListener("change", async (event) => {
-      await updateNotificationSettings(event.target.checked);
-    });
-  }
-
-
   // Управление доступностью чекбокса "Уведомить за час"
   const startTimeInput = ui.taskForm.elements["start_time"];
   const notifyDayCheckbox = ui.taskForm.elements["notify_day"];
@@ -848,31 +838,6 @@ function setupListeners() {
   });
 }
 
-async function loadNotificationSettings() {
-  try {
-    const user = await apiFetch("/users/me");
-    if (ui.notificationsToggle) {
-      ui.notificationsToggle.checked = user.telegram_notifications_enabled ?? true;
-    }
-  } catch (error) {
-    console.error("Ошибка загрузки настроек уведомлений:", error);
-  }
-}
-
-async function updateNotificationSettings(enabled) {
-  try {
-    await apiFetch("/users/me/notifications", {
-      method: "PATCH",
-      body: JSON.stringify({ telegram_notifications_enabled: enabled }),
-    });
-  } catch (error) {
-    alert("Ошибка обновления настроек: " + error.message);
-    // Откатываем изменение
-    if (ui.notificationsToggle) {
-      ui.notificationsToggle.checked = !enabled;
-    }
-  }
-}
 
 
 function renderCurrentView() {
