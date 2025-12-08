@@ -732,15 +732,17 @@ function setupListeners() {
     }
 
     // Обработка уведомлений
+    // Проверяем чекбоксы через элементы формы (FormData не включает неотмеченные чекбоксы)
+    const notifyDayCheckbox = ui.taskForm.elements["notify_day"];
+    const notifyHourCheckbox = ui.taskForm.elements["notify_hour"];
+    
     // Уведомление за день работает всегда
-    const notifyDay = formData.get("notify_day");
-    payload.notify_before_days = (notifyDay === "on" || notifyDay === true) ? 1 : null;
+    payload.notify_before_days = (notifyDayCheckbox && notifyDayCheckbox.checked) ? 1 : null;
     
     // Уведомление за час работает только если указано время начала
-    const notifyHour = formData.get("notify_hour");
-    payload.notify_before_hours = ((notifyHour === "on" || notifyHour === true) && payload.start_time) ? 1 : null;
+    payload.notify_before_hours = (notifyHourCheckbox && notifyHourCheckbox.checked && payload.start_time) ? 1 : null;
 
-    // Удаляем служебные поля
+    // Удаляем служебные поля из payload (если они там есть)
     delete payload["notify_day"];
     delete payload["notify_hour"];
 
