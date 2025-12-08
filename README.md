@@ -11,7 +11,7 @@ A Telegram bot paired with a Telegram Mini App calendar for managing personal an
 - **SQLite persistence** with SQLAlchemy models and simple CRUD layer.
 
 ## Project Structure
-
+test
 ```
 .
 ├── README.md
