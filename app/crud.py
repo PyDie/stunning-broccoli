@@ -89,7 +89,9 @@ async def get_family_by_id(db: AsyncSession, family_id: int) -> Optional[models.
 
 async def get_family_by_invite(db: AsyncSession, invite_code: str) -> Optional[models.Family]:
     """Асинхронное получение семьи по коду приглашения."""
-    stmt = select(models.Family).where(models.Family.invite_code == invite_code.upper())
+    # Нормализуем код: убираем пробелы и переводим в верхний регистр
+    normalized_code = invite_code.strip().upper()
+    stmt = select(models.Family).where(models.Family.invite_code == normalized_code)
     # Использование .scalar_one_or_none() или .first() для получения объекта
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
