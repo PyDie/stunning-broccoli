@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, time
+import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -64,7 +65,7 @@ class TaskRead(TaskBase):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    date: Optional[date] = None
+    date: Optional[datetime.date] = None
     start_time: Optional[time] = None
     end_time: Optional[time] = None
     scope: Optional[str] = None

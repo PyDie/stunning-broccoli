@@ -6,6 +6,18 @@
   <title>TGCalendar</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Polyfill for Drag and Drop on mobile -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+  <script>
+    // Initialize mobile drag and drop
+    MobileDragDrop.polyfill({
+      dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride
+    });
+    
+    // Fix for scrolling while dragging
+    window.addEventListener( 'touchmove', function() {}, {passive: false});
+  </script>
 </head>
 <body>
   <div class="app">
