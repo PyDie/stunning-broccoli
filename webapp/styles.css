@@ -21,9 +21,10 @@ html, body {
 body {
   margin: 0;
   min-height: 100svh;
-  height: 100svh;
+  height: auto;
   background: var(--tg-theme-bg-color, #f6f6f6);
-  overflow: hidden; /* миниапп без прокрутки страницы */
+  overflow-y: auto; /* разрешаем прокрутку приложения целиком */
+  overflow-x: hidden;
 }
 
 .hidden {
