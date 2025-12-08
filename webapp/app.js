@@ -821,21 +821,7 @@ function setupListeners() {
     notifyHourCheckbox.style.pointerEvents = "none";
   }
   
-  // Добавляем явную обработку кликов на label для надежности
-  const notificationOptions = document.querySelectorAll(".notification-option");
-  notificationOptions.forEach(option => {
-    const checkbox = option.querySelector('input[type="checkbox"]');
-    if (checkbox && !checkbox.disabled) {
-      option.addEventListener("click", (e) => {
-        // Если клик не на самом чекбоксе, переключаем его
-        if (e.target !== checkbox && e.target.tagName !== "INPUT") {
-          e.preventDefault();
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      });
-    }
-  });
+  // Label автоматически переключает чекбокс, дополнительная обработка не нужна
 }
 
 

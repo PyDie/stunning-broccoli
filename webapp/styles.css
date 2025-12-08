@@ -603,6 +603,8 @@ input[type="color"] {
   cursor: pointer;
   min-height: var(--touch-target);
   padding: 4px 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .notification-option:last-child {
@@ -612,11 +614,16 @@ input[type="color"] {
 .notification-option input[type="checkbox"] {
   width: 22px;
   height: 22px;
+  min-width: 22px;
+  min-height: 22px;
   cursor: pointer;
   flex-shrink: 0;
   pointer-events: auto;
   position: relative;
   z-index: 1;
+  margin: 0;
+  -webkit-appearance: checkbox;
+  appearance: checkbox;
 }
 
 .notification-option input[type="checkbox"]:disabled {
