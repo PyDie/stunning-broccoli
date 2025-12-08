@@ -614,6 +614,9 @@ input[type="color"] {
   height: 22px;
   cursor: pointer;
   flex-shrink: 0;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .notification-option input[type="checkbox"]:disabled {

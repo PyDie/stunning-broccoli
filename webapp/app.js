@@ -799,7 +799,14 @@ function setupListeners() {
 
   // Управление доступностью чекбокса "Уведомить за час"
   const startTimeInput = ui.taskForm.elements["start_time"];
+  const notifyDayCheckbox = ui.taskForm.elements["notify_day"];
   const notifyHourCheckbox = ui.taskForm.elements["notify_hour"];
+  
+  // Убеждаемся, что чекбоксы не disabled изначально (кроме notify_hour)
+  if (notifyDayCheckbox) {
+    notifyDayCheckbox.disabled = false;
+  }
+  
   if (startTimeInput && notifyHourCheckbox) {
     const updateNotifyHourAvailability = () => {
       const hasStartTime = startTimeInput.value && startTimeInput.value.trim() !== "";
@@ -813,6 +820,9 @@ function setupListeners() {
     startTimeInput.addEventListener("change", updateNotifyHourAvailability);
     // Проверяем при загрузке
     updateNotifyHourAvailability();
+  } else if (notifyHourCheckbox) {
+    // Если нет поля времени, отключаем чекбокс за час
+    notifyHourCheckbox.disabled = true;
   }
 }
 
