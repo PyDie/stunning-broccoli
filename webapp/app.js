@@ -805,12 +805,17 @@ function setupListeners() {
   // Убеждаемся, что чекбоксы не disabled изначально (кроме notify_hour)
   if (notifyDayCheckbox) {
     notifyDayCheckbox.disabled = false;
+    // Явно устанавливаем стили для кликабельности
+    notifyDayCheckbox.style.pointerEvents = "auto";
+    notifyDayCheckbox.style.cursor = "pointer";
   }
   
   if (startTimeInput && notifyHourCheckbox) {
     const updateNotifyHourAvailability = () => {
       const hasStartTime = startTimeInput.value && startTimeInput.value.trim() !== "";
       notifyHourCheckbox.disabled = !hasStartTime;
+      notifyHourCheckbox.style.pointerEvents = hasStartTime ? "auto" : "none";
+      notifyHourCheckbox.style.cursor = hasStartTime ? "pointer" : "not-allowed";
       if (!hasStartTime && notifyHourCheckbox.checked) {
         notifyHourCheckbox.checked = false;
       }
@@ -823,7 +828,24 @@ function setupListeners() {
   } else if (notifyHourCheckbox) {
     // Если нет поля времени, отключаем чекбокс за час
     notifyHourCheckbox.disabled = true;
+    notifyHourCheckbox.style.pointerEvents = "none";
   }
+  
+  // Добавляем явную обработку кликов на label для надежности
+  const notificationOptions = document.querySelectorAll(".notification-option");
+  notificationOptions.forEach(option => {
+    const checkbox = option.querySelector('input[type="checkbox"]');
+    if (checkbox && !checkbox.disabled) {
+      option.addEventListener("click", (e) => {
+        // Если клик не на самом чекбоксе, переключаем его
+        if (e.target !== checkbox && e.target.tagName !== "INPUT") {
+          e.preventDefault();
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+    }
+  });
 }
 
 async function loadNotificationSettings() {
