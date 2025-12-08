@@ -4,6 +4,9 @@ import asyncio
 import logging
 from pathlib import Path
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +27,7 @@ app = FastAPI(title="TGCalendar API", version="0.1.0")
 
 @app.on_event("startup")
 async def startup_event():
-    """Выполнение миграций при старте приложения."""
+    """Выполнение миграций и запуск планировщика при старте приложения."""
     try:
         logger.info("Запуск миграций базы данных...")
         await run_migrations()
@@ -32,6 +35,14 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Ошибка при выполнении миграций: {e}")
         # Не прерываем запуск приложения, но логируем ошибку
+    
+    # Запускаем планировщик уведомлений в фоновом режиме
+    try:
+        from app.scheduler import run_scheduler
+        asyncio.create_task(run_scheduler())
+        logger.info("Планировщик уведомлений запущен")
+    except Exception as e:
+        logger.error(f"Ошибка при запуске планировщика уведомлений: {e}")
 
 app.add_middleware(
     CORSMiddleware,

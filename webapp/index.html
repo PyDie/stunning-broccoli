@@ -110,6 +110,28 @@
               <option value="">Не выбрана</option>
             </select>
           </label>
+          <label>
+            Теги (через запятую)
+            <input type="text" name="tags" placeholder="работа, важное, срочно" />
+          </label>
+          <label>
+            Цвет
+            <div class="color-picker">
+              <input type="color" name="color" id="task-color" value="#4c6fff" />
+              <input type="text" name="color-text" id="task-color-text" value="#4c6fff" pattern="^#[0-9A-Fa-f]{6}$" />
+            </div>
+          </label>
+          <div class="notification-settings">
+            <h4>Уведомления о предстоящей задаче</h4>
+            <label class="notification-option">
+              <input type="checkbox" name="notify_day" id="notify-day" />
+              <span>Уведомить за день до начала</span>
+            </label>
+            <label class="notification-option">
+              <input type="checkbox" name="notify_hour" id="notify-hour" />
+              <span>Уведомить за час до начала</span>
+            </label>
+          </div>
           <button type="submit">Добавить</button>
         </form>
 

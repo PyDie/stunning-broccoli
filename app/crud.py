@@ -298,6 +298,10 @@ async def create_task(
         start_time=payload.start_time,
         end_time=payload.end_time,
         scope=models.TaskScope(payload.scope),
+        tags=payload.tags,
+        color=payload.color,
+        notify_before_days=payload.notify_before_days,
+        notify_before_hours=payload.notify_before_hours,
     )
     db.add(task)
     
@@ -325,7 +329,7 @@ async def update_task(
         if not task.family_id or not await is_member(db, user_id, task.family_id):
             raise PermissionError("Forbidden")
 
-    for field in ["title", "description", "date", "start_time", "end_time"]:
+    for field in ["title", "description", "date", "start_time", "end_time", "tags", "color", "notify_before_days", "notify_before_hours"]:
         value = getattr(payload, field)
         if value is not None:
             setattr(task, field, value)

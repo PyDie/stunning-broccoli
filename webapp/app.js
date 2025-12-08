@@ -309,6 +309,13 @@ function renderTaskList() {
 
   tasks.forEach((task) => {
     const node = ui.taskTemplate.content.cloneNode(true);
+    const taskItem = node.querySelector(".task-item");
+    
+    // Применяем цвет, если есть
+    if (task.color) {
+      taskItem.style.borderLeft = `4px solid ${task.color}`;
+    }
+    
     node.querySelector(".task-item__title").textContent = task.title;
     const descEl = node.querySelector(".task-item__description");
     if (task.description) {
@@ -316,6 +323,8 @@ function renderTaskList() {
     } else {
       descEl.remove();
     }
+    
+    // Добавляем теги
     const meta = [];
     const time = formatTimeRange(task);
     if (time) meta.push(time);
@@ -323,7 +332,23 @@ function renderTaskList() {
       const family = state.families.find((f) => f.id === task.family_id);
       if (family) meta.push(family.name);
     }
-    node.querySelector(".task-item__meta").textContent = meta.join(" • ");
+    
+    const metaEl = node.querySelector(".task-item__meta");
+    metaEl.textContent = meta.join(" • ");
+    
+    // Добавляем теги после мета-информации
+    if (task.tags && task.tags.length > 0) {
+      const tagsContainer = document.createElement("div");
+      tagsContainer.className = "task-item__tags";
+      task.tags.forEach(tag => {
+        const tagEl = document.createElement("span");
+        tagEl.className = "task-tag";
+        tagEl.textContent = tag;
+        tagsContainer.appendChild(tagEl);
+      });
+      metaEl.parentNode.insertBefore(tagsContainer, metaEl.nextSibling);
+    }
+    
     const deleteBtn = node.querySelector(".task-item__delete");
     deleteBtn.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -690,12 +715,42 @@ function setupListeners() {
       return;
     }
 
+    // Обработка тегов
+    if (payload.tags) {
+      payload.tags = payload.tags.split(",").map(t => t.trim()).filter(t => t.length > 0);
+      if (payload.tags.length === 0) payload.tags = null;
+    } else {
+      payload.tags = null;
+    }
+
+    // Обработка цвета
+    payload.color = payload.color || null;
+    if (payload.color && !payload.color.startsWith("#")) {
+      payload.color = "#" + payload.color;
+    }
+
+    // Обработка уведомлений
+    payload.notify_before_days = formData.get("notify_day") ? 1 : null;
+    payload.notify_before_hours = formData.get("notify_hour") ? 1 : null;
+
+    // Удаляем служебные поля
+    delete payload["notify_day"];
+    delete payload["notify_hour"];
+    delete payload["color-text"];
+
     try {
       await apiFetch("/tasks", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       ui.taskForm.reset();
+      // Восстанавливаем цвет по умолчанию
+      if (ui.taskForm.elements["color"]) {
+        ui.taskForm.elements["color"].value = "#4c6fff";
+      }
+      if (ui.taskForm.elements["color-text"]) {
+        ui.taskForm.elements["color-text"].value = "#4c6fff";
+      }
       syncFormDate();
       syncFormScope();
       fetchTasks();
@@ -738,6 +793,22 @@ function setupListeners() {
 
   if (ui.testNotificationBtn) {
     ui.testNotificationBtn.addEventListener("click", sendTestNotification);
+  }
+
+  // Синхронизация цветов в форме
+  const colorInput = ui.taskForm.elements["color"];
+  const colorTextInput = ui.taskForm.elements["color-text"];
+  if (colorInput && colorTextInput) {
+    colorInput.addEventListener("input", (e) => {
+      colorTextInput.value = e.target.value;
+    });
+    colorTextInput.addEventListener("input", (e) => {
+      let value = e.target.value;
+      if (!value.startsWith("#")) value = "#" + value;
+      if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+        colorInput.value = value;
+      }
+    });
   }
 }
 
@@ -887,6 +958,11 @@ function renderKanban() {
         event.dataTransfer.setData("taskId", String(task.id));
       });
 
+      // Применяем цвет, если есть
+      if (task.color) {
+        card.style.borderLeft = `4px solid ${task.color}`;
+      }
+
       const title = document.createElement("div");
       title.className = "kanban-card__title";
       title.textContent = task.title;
@@ -901,6 +977,19 @@ function renderKanban() {
         desc.className = "kanban-card__description";
         desc.textContent = task.description;
         card.appendChild(desc);
+      }
+
+      // Добавляем теги
+      if (task.tags && task.tags.length > 0) {
+        const tagsContainer = document.createElement("div");
+        tagsContainer.className = "kanban-card__tags";
+        task.tags.forEach(tag => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "task-tag";
+          tagEl.textContent = tag;
+          tagsContainer.appendChild(tagEl);
+        });
+        card.appendChild(tagsContainer);
       }
 
       const meta = document.createElement("div");

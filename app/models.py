@@ -4,7 +4,7 @@ from datetime import date, time
 from enum import Enum as PyEnum
 from typing import Optional
 
-from sqlalchemy import String, ForeignKey, UniqueConstraint, Date, Time, Enum as SAEnum, Text
+from sqlalchemy import String, ForeignKey, UniqueConstraint, Date, Time, Enum as SAEnum, Text, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -67,6 +67,10 @@ class Task(Base):
     start_time: Mapped[time | None] = mapped_column(Time)
     end_time: Mapped[time | None] = mapped_column(Time)
     scope: Mapped[TaskScope] = mapped_column(SAEnum(TaskScope), default=TaskScope.personal, nullable=False)
+    tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)  # Список тегов
+    color: Mapped[str | None] = mapped_column(String(7), nullable=True)  # HEX цвет (#RRGGBB)
+    notify_before_days: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Уведомить за N дней
+    notify_before_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Уведомить за N часов
 
     owner: Mapped[User] = relationship("User", back_populates="tasks")
     family: Mapped[Family | None] = relationship("Family", back_populates="tasks")

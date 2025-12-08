@@ -54,6 +54,51 @@ async def run_migrations():
                 logger.error(f"✗ Ошибка при добавлении blocked: {e}")
         else:
             logger.info("✓ Колонка blocked уже существует")
+        
+        # Миграция 3: Добавление колонок для тегов, цвета и уведомлений в таблицу tasks
+        if not await column_exists(conn, "tasks", "tags"):
+            try:
+                await conn.execute(
+                    text("ALTER TABLE tasks ADD COLUMN tags JSON")
+                )
+                logger.info("✓ Добавлена колонка tags в таблицу tasks")
+            except Exception as e:
+                logger.error(f"✗ Ошибка при добавлении tags: {e}")
+        else:
+            logger.info("✓ Колонка tags уже существует")
+        
+        if not await column_exists(conn, "tasks", "color"):
+            try:
+                await conn.execute(
+                    text("ALTER TABLE tasks ADD COLUMN color VARCHAR(7)")
+                )
+                logger.info("✓ Добавлена колонка color в таблицу tasks")
+            except Exception as e:
+                logger.error(f"✗ Ошибка при добавлении color: {e}")
+        else:
+            logger.info("✓ Колонка color уже существует")
+        
+        if not await column_exists(conn, "tasks", "notify_before_days"):
+            try:
+                await conn.execute(
+                    text("ALTER TABLE tasks ADD COLUMN notify_before_days INTEGER")
+                )
+                logger.info("✓ Добавлена колонка notify_before_days в таблицу tasks")
+            except Exception as e:
+                logger.error(f"✗ Ошибка при добавлении notify_before_days: {e}")
+        else:
+            logger.info("✓ Колонка notify_before_days уже существует")
+        
+        if not await column_exists(conn, "tasks", "notify_before_hours"):
+            try:
+                await conn.execute(
+                    text("ALTER TABLE tasks ADD COLUMN notify_before_hours INTEGER")
+                )
+                logger.info("✓ Добавлена колонка notify_before_hours в таблицу tasks")
+            except Exception as e:
+                logger.error(f"✗ Ошибка при добавлении notify_before_hours: {e}")
+        else:
+            logger.info("✓ Колонка notify_before_hours уже существует")
     
     logger.info("Миграции завершены!")
 

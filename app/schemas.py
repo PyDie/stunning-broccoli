@@ -66,6 +66,10 @@ class TaskBase(BaseModel):
     end_time: Optional[time]
     scope: str = Field(default="personal")
     family_id: Optional[int]
+    tags: Optional[list[str]] = None
+    color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")  # HEX цвет
+    notify_before_days: Optional[int] = Field(None, ge=0, le=365)
+    notify_before_hours: Optional[int] = Field(None, ge=0, le=24)
 
 
 class TaskCreate(TaskBase):
@@ -87,3 +91,7 @@ class TaskUpdate(BaseModel):
     end_time: Optional[time] = None
     scope: Optional[str] = None
     family_id: Optional[int] = None
+    tags: Optional[list[str]] = None
+    color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    notify_before_days: Optional[int] = Field(None, ge=0, le=365)
+    notify_before_hours: Optional[int] = Field(None, ge=0, le=24)

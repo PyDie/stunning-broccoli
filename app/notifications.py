@@ -99,3 +99,16 @@ async def notify_family_member_added(
     """Уведомление о добавлении нового участника в группу."""
     message = f"👥 В группу \"{family_name}\" присоединился {new_member_name}"
     return await send_telegram_notification(user_id, message, db)
+
+
+async def notify_upcoming_task(
+    user_id: int,
+    task_title: str,
+    task_date: str,
+    task_time: Optional[str] = None,
+    db: Optional[AsyncSession] = None
+) -> bool:
+    """Уведомление о предстоящей задаче."""
+    time_str = f" в {task_time}" if task_time else ""
+    message = f"⏰ Напоминание: {task_title}\n📅 {task_date}{time_str}"
+    return await send_telegram_notification(user_id, message, db)
