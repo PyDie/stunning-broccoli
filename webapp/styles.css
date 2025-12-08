@@ -629,6 +629,20 @@ h1 {
   flex-shrink: 0;
 }
 
+.notification-option input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.notification-option:has(input[type="checkbox"]:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.notification-option:has(input[type="checkbox"]:disabled) span {
+  color: var(--tg-theme-hint-color, #888);
+}
+
 /* ============================================
    КАНБАН-ДОСКА
    ============================================ */

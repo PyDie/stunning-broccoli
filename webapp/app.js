@@ -716,7 +716,7 @@ function setupListeners() {
     }
 
     // Обработка тегов
-    if (payload.tags) {
+    if (payload.tags && payload.tags.trim()) {
       payload.tags = payload.tags.split(",").map(t => t.trim()).filter(t => t.length > 0);
       if (payload.tags.length === 0) payload.tags = null;
     } else {
@@ -725,13 +725,27 @@ function setupListeners() {
 
     // Обработка цвета
     payload.color = payload.color || null;
-    if (payload.color && !payload.color.startsWith("#")) {
-      payload.color = "#" + payload.color;
+    if (payload.color) {
+      // Убираем пробелы и проверяем формат
+      payload.color = payload.color.trim();
+      if (!payload.color.startsWith("#")) {
+        payload.color = "#" + payload.color;
+      }
+      // Проверяем, что это валидный HEX цвет
+      if (!/^#[0-9A-Fa-f]{6}$/.test(payload.color)) {
+        payload.color = null; // Если невалидный, сбрасываем
+      }
     }
 
-    // Обработка уведомлений
-    payload.notify_before_days = formData.get("notify_day") ? 1 : null;
-    payload.notify_before_hours = formData.get("notify_hour") ? 1 : null;
+    // Обработка уведомлений (только если указано время начала)
+    if (payload.start_time) {
+      payload.notify_before_days = formData.get("notify_day") ? 1 : null;
+      payload.notify_before_hours = formData.get("notify_hour") ? 1 : null;
+    } else {
+      // Если нет времени начала, уведомления за час не имеют смысла
+      payload.notify_before_days = formData.get("notify_day") ? 1 : null;
+      payload.notify_before_hours = null;
+    }
 
     // Удаляем служебные поля
     delete payload["notify_day"];
@@ -809,6 +823,24 @@ function setupListeners() {
         colorInput.value = value;
       }
     });
+  }
+
+  // Управление доступностью чекбокса "Уведомить за час"
+  const startTimeInput = ui.taskForm.elements["start_time"];
+  const notifyHourCheckbox = ui.taskForm.elements["notify_hour"];
+  if (startTimeInput && notifyHourCheckbox) {
+    const updateNotifyHourAvailability = () => {
+      const hasStartTime = startTimeInput.value && startTimeInput.value.trim() !== "";
+      notifyHourCheckbox.disabled = !hasStartTime;
+      if (!hasStartTime && notifyHourCheckbox.checked) {
+        notifyHourCheckbox.checked = false;
+      }
+    };
+    
+    startTimeInput.addEventListener("input", updateNotifyHourAvailability);
+    startTimeInput.addEventListener("change", updateNotifyHourAvailability);
+    // Проверяем при загрузке
+    updateNotifyHourAvailability();
   }
 }
 
