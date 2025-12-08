@@ -116,6 +116,7 @@ async def list_user_families(db: AsyncSession, user_id: int) -> list[models.Fami
     stmt = (
         select(models.FamilyMembership)
         .where(models.FamilyMembership.user_id == user_id)
+        .options(selectinload(models.FamilyMembership.family))
     )
     # .scalars().all() для получения списка объектов модели
     result = await db.execute(stmt)

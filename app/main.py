@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI
@@ -13,9 +15,23 @@ from app.config import get_settings
 from app.database import Base, engine
 from app.dependencies import get_current_user
 from app.routers import families, tasks, users
+from app.routers.migrations import run_migrations
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 app = FastAPI(title="TGCalendar API", version="0.1.0")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Выполнение миграций при старте приложения."""
+    try:
+        logger.info("Запуск миграций базы данных...")
+        await run_migrations()
+        logger.info("Миграции выполнены успешно")
+    except Exception as e:
+        logger.error(f"Ошибка при выполнении миграций: {e}")
+        # Не прерываем запуск приложения, но логируем ошибку
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +49,19 @@ app.include_router(tasks.router)
 @app.get("/health")
 def healthcheck():
     return {"status": "ok"}
+
+
+@app.post("/migrate")
+async def migrate_db():
+    """
+    Endpoint для выполнения миграций базы данных.
+    ВНИМАНИЕ: Используйте только для разработки или с защитой в production!
+    """
+    try:
+        await run_migrations()
+        return {"status": "success", "message": "Миграции выполнены успешно"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 class WebAppAuthRequest(BaseModel):

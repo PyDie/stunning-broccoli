@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from contextlib import contextmanager
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, Router
@@ -16,7 +15,7 @@ from dotenv import load_dotenv
 
 from app import crud, schemas
 from app.config import get_settings
-from app.database import SessionLocal
+from app.database import AsyncSessionLocal
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -27,17 +26,8 @@ bot = Bot(settings.bot_token)
 dp = Dispatcher()
 router = Router()
 
-
-@contextmanager
-def session_scope():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def upsert_user(message: Message):
+async def upsert_user(message: Message):
+    """Асинхронное создание или обновление пользователя."""
     user = message.from_user
     payload = schemas.UserCreate(
         id=user.id,
@@ -45,13 +35,13 @@ def upsert_user(message: Message):
         last_name=user.last_name,
         username=user.username,
     )
-    with session_scope() as db:
-        return crud.create_or_update_user(db, payload)
+    async with AsyncSessionLocal() as db:
+        return await crud.create_or_update_user(db, payload)
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    upsert_user(message)
+    await upsert_user(message)
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -72,20 +62,20 @@ async def cmd_start(message: Message):
 
 @router.message(Command("families"))
 async def cmd_families(message: Message):
-    with session_scope() as db:
-        memberships = crud.list_user_families(db, message.from_user.id)
+    async with AsyncSessionLocal() as db:
+        memberships = await crud.list_user_families(db, message.from_user.id)
+        
+        if not memberships:
+            await message.answer("Ты пока не в групповых календарях. Создай или присоединись!")
+            return
 
-    if not memberships:
-        await message.answer("Ты пока не в групповых календарях. Создай или присоединись!")
-        return
-
-    lines = ["Твои группы:"]
-    for membership in memberships:
-        lines.append(
-            f"• {membership.family.name} — код: `{membership.family.invite_code}`"
-        )
-    lines.append("Поделись кодом, чтобы пригласить близких.")
-    await message.answer("\n".join(lines), parse_mode="Markdown")
+        lines = ["Твои группы:"]
+        for membership in memberships:
+            lines.append(
+                f"• {membership.family.name} — код: `{membership.family.invite_code}`"
+            )
+        lines.append("Поделись кодом, чтобы пригласить близких.")
+        await message.answer("\n".join(lines), parse_mode="Markdown")
 
 
 @router.message(Command("family_create"))
@@ -95,12 +85,12 @@ async def cmd_family_create(message: Message, command: CommandObject):
         await message.answer("Укажи название: `/family_create Дом`", parse_mode="Markdown")
         return
 
-    with session_scope() as db:
-        family = crud.create_family(db, owner_id=message.from_user.id, name=name)
-    await message.answer(
-        f"Групповой календарь *{family.name}* создан! Поделись кодом `{family.invite_code}`",
-        parse_mode="Markdown",
-    )
+    async with AsyncSessionLocal() as db:
+        family = await crud.create_family(db, owner_id=message.from_user.id, name=name)
+        await message.answer(
+            f"Групповой календарь *{family.name}* создан! Поделись кодом `{family.invite_code}`",
+            parse_mode="Markdown",
+        )
 
 
 @router.message(Command("family_join"))
@@ -110,17 +100,15 @@ async def cmd_family_join(message: Message, command: CommandObject):
         await message.answer("Укажи код: `/family_join ABC123`", parse_mode="Markdown")
         return
 
-    with session_scope() as db:
+    async with AsyncSessionLocal() as db:
         try:
-            family = crud.add_user_to_family(db, message.from_user.id, code)
+            family = await crud.add_user_to_family(db, message.from_user.id, code)
+            await message.answer(
+                f"Ура! Ты присоединился к календарю *{family.name}*.",
+                parse_mode="Markdown",
+            )
         except ValueError:
             await message.answer("Не нашёл такой код. Проверь и попробуй снова.")
-            return
-
-    await message.answer(
-        f"Ура! Ты присоединился к календарю *{family.name}*.",
-        parse_mode="Markdown",
-    )
 
 
 def register_handlers():

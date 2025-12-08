@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import create_engine
 
 from app.config import get_settings
 
@@ -32,6 +33,13 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False, 
     expire_on_commit=False # Рекомендуется для AsyncSession
 )
+
+# 5. Создание синхронного движка для бота (использует синхронные операции)
+SYNC_DATABASE_URL = settings.database_url
+sync_engine = create_engine(SYNC_DATABASE_URL, echo=False)
+
+# 6. Создание синхронной фабрики сессий для бота
+SessionLocal = sessionmaker(bind=sync_engine, autocommit=False, autoflush=False)
 
 
 # 5. Асинхронный генератор зависимостей (Dependency)
