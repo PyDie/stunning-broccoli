@@ -1,9 +1,12 @@
 const tg = window.Telegram?.WebApp;
 const params = new URLSearchParams(window.location.search);
 
+// Debug режим только для разработки (проверка через параметр URL)
+const isDevelopment = params.get("dev") === "true";
+
 const state = {
   token: null,
-  debugUserId: params.get("debug_user"),
+  debugUserId: isDevelopment ? params.get("debug_user") : null,
   families: [],
   scope: { type: "personal", familyId: null },
   currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -730,9 +733,12 @@ function setupListeners() {
 
     // Обработка уведомлений
     // Уведомление за день работает всегда
-    payload.notify_before_days = formData.get("notify_day") === "on" ? 1 : null;
+    const notifyDay = formData.get("notify_day");
+    payload.notify_before_days = (notifyDay === "on" || notifyDay === true) ? 1 : null;
+    
     // Уведомление за час работает только если указано время начала
-    payload.notify_before_hours = (formData.get("notify_hour") === "on" && payload.start_time) ? 1 : null;
+    const notifyHour = formData.get("notify_hour");
+    payload.notify_before_hours = ((notifyHour === "on" || notifyHour === true) && payload.start_time) ? 1 : null;
 
     // Удаляем служебные поля
     delete payload["notify_day"];

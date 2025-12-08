@@ -131,9 +131,12 @@ async def leave_family(
     except HTTPException:
         raise
     except Exception as e:
-                logger.error(f"Error leaving family: {e}")
-                # Return the actual error message for debugging
-                raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        logger.error(f"Error leaving family: {e}")
+        # Не раскрываем детали ошибки в продакшене
+        from app.config import get_settings
+        settings = get_settings()
+        error_detail = str(e) if settings.environment == "development" else "Internal Server Error"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 # -----------------------------------------------------------

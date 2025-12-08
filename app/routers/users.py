@@ -47,8 +47,14 @@ async def test_notification(
 ):
     """
     Тестовая отправка уведомления пользователю.
+    Доступна только в development режиме.
     """
+    from app.config import get_settings
     from app.notifications import send_telegram_notification
+    
+    settings = get_settings()
+    if settings.environment != "development":
+        raise HTTPException(status_code=403, detail="Test notification endpoint is only available in development mode")
     
     try:
         await send_telegram_notification(
@@ -57,4 +63,5 @@ async def test_notification(
         )
         return {"status": "success", "message": "Тестовое уведомление отправлено"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка отправки уведомления: {str(e)}")
+        error_msg = str(e) if settings.environment == "development" else "Ошибка отправки уведомления"
+        raise HTTPException(status_code=500, detail=error_msg)

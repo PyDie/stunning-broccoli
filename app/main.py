@@ -7,7 +7,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -44,9 +44,17 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Ошибка при запуске планировщика уведомлений: {e}")
 
+# Настройка CORS
+cors_origins = ["*"]  # По умолчанию разрешаем все (для разработки)
+if settings.cors_origins:
+    cors_origins = [origin.strip() for origin in settings.cors_origins.split(",")]
+elif settings.environment == "production":
+    # В продакшене без явного указания origins - только webapp_url
+    cors_origins = [settings.webapp_url]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -63,16 +71,22 @@ def healthcheck():
 
 
 @app.post("/migrate")
-async def migrate_db():
+async def migrate_db(
+    current_user: schemas.UserRead = Depends(get_current_user),
+):
     """
     Endpoint для выполнения миграций базы данных.
-    ВНИМАНИЕ: Используйте только для разработки или с защитой в production!
+    Доступен только в development режиме.
     """
+    if settings.environment != "development":
+        raise HTTPException(status_code=403, detail="Migration endpoint is only available in development mode")
+    
     try:
         await run_migrations()
         return {"status": "success", "message": "Миграции выполнены успешно"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Migration error: {e}")
+        return {"status": "error", "message": "Migration failed" if settings.environment == "production" else str(e)}
 
 
 class WebAppAuthRequest(BaseModel):
@@ -85,9 +99,7 @@ def auth_verify(payload: WebAppAuthRequest):
     return {"token": token}
 
 
-@app.get("/me")
-def whoami(current_user: schemas.UserRead = Depends(get_current_user)):
-    return current_user
+# Endpoint /me уже есть в app/routers/users.py, удаляем дубликат
 
 
 webapp_dir = Path(__file__).resolve().parent.parent / "webapp"

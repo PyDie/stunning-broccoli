@@ -1,21 +1,24 @@
 from functools import lru_cache
-# Убираем AnyHttpUrl из импортов, т.к. будем использовать str
 from pydantic_settings import BaseSettings 
-from pydantic import Field # Импортируем Field для установки нового типа по умолчанию
+from pydantic import Field
 
 
 class Settings(BaseSettings):
     bot_token: str
-    # 1. Меняем AnyHttpUrl на str. (URL веб-приложения, вероятно, не должен быть жестко привязан к HTTP/HTTPS)
     webapp_url: str 
-    api_base_url: str = "http://localhost:8000" # Меняем на str, чтобы быть последовательными
+    api_base_url: str = "http://localhost:8000"
     
-    # 2. Устанавливаем значение по умолчанию для Postgre, если нет переменной окружения
-    # В реальной среде это будет переопределено переменной DATABASE_URL
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/tgcalendar_db" 
+    # В продакшене должно быть установлено через переменную окружения
+    database_url: str = Field(default="", description="Database URL")
     
     jwt_secret: str
     tg_skip_signature_check: bool = False
+    
+    # Режим работы приложения
+    environment: str = Field(default="production", description="Environment: production or development")
+    
+    # CORS origins для продакшена (через запятую)
+    cors_origins: str = Field(default="", description="Allowed CORS origins (comma-separated)")
 
     class Config:
         env_file = ".env"

@@ -15,16 +15,19 @@ def _ensure_token(auth_header: str | None) -> str:
     return auth_header.split(" ", 1)[1].strip()
 
 
-async def get_current_user( # <-- Функция должна быть ASYNC
-    db: AsyncSession = Depends(get_async_db), # <-- Зависимость использует get_async_db
+async def get_current_user(
+    db: AsyncSession = Depends(get_async_db),
     authorization: str | None = Header(default=None, convert_underscores=False, alias="Authorization"),
     x_debug_user_id: int | None = Header(default=None),
 ) -> schemas.UserRead:
     
-    # Dev fallback with mocked user header
-    if x_debug_user_id:
+    # Debug режим только в development
+    from app.config import get_settings
+    settings = get_settings()
+    
+    if x_debug_user_id and settings.environment == "development":
         payload = schemas.UserCreate(id=x_debug_user_id, first_name="Debug", last_name=None, username="debug")
-        user = await crud.create_or_update_user(db, payload) # <-- Добавляем await
+        user = await crud.create_or_update_user(db, payload)
         return schemas.UserRead.model_validate(user)
 
     token = _ensure_token(authorization)
