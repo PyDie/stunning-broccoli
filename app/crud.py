@@ -230,3 +230,24 @@ async def update_task(
     await db.commit()
     await db.refresh(task)
     return task
+
+
+async def delete_task(
+    db: AsyncSession,
+    user_id: int,
+    task_id: int,
+) -> None:
+    """Удаление задачи с проверкой прав."""
+    task = await db.get(models.Task, task_id)
+    if not task:
+        raise ValueError("Task not found")
+
+    if task.scope == models.TaskScope.personal:
+        if task.owner_id != user_id:
+            raise PermissionError("Forbidden")
+    elif task.scope == models.TaskScope.family:
+        if not task.family_id or not await is_member(db, user_id, task.family_id):
+            raise PermissionError("Forbidden")
+
+    await db.delete(task)
+    await db.commit()

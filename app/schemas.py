@@ -67,3 +67,19 @@ class TaskUpdate(BaseModel):
     date: Optional[date] = None
     start_time: Optional[time] = None
     end_time: Optional[time] = None
+
+    @field_validator("date", mode="before")
+    def parse_date(cls, v):
+        if v in (None, "", 0):
+            return None
+        if isinstance(v, str):
+            return date.fromisoformat(v)
+        return v
+
+    @field_validator("start_time", "end_time", mode="before")
+    def parse_time(cls, v):
+        if v in (None, "", 0):
+            return None
+        if isinstance(v, str):
+            return time.fromisoformat(v)
+        return v

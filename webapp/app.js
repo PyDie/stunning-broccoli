@@ -288,6 +288,11 @@ function renderTaskList() {
       if (family) meta.push(family.name);
     }
     node.querySelector(".task-item__meta").textContent = meta.join(" • ");
+    const deleteBtn = node.querySelector(".task-item__delete");
+    deleteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      confirmDelete(task.id);
+    });
     ui.taskList.appendChild(node);
   });
 }
@@ -601,6 +606,15 @@ function renderKanban() {
       meta.textContent = metaParts.join(" • ") || "Без времени";
       card.appendChild(meta);
 
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "kanban__delete";
+      deleteBtn.textContent = "Удалить";
+      deleteBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        confirmDelete(task.id);
+      });
+      card.appendChild(deleteBtn);
+
       list.appendChild(card);
     });
 
@@ -662,6 +676,17 @@ async function quickAddTask(dateISO) {
     setSelectedDateFromISO(dateISO);
   } catch (error) {
     alert(error.message);
+  }
+}
+
+async function confirmDelete(taskId) {
+  const agree = confirm("Удалить задачу?");
+  if (!agree) return;
+  try {
+    await apiFetch(`/tasks/${taskId}`, { method: "DELETE" });
+    await fetchTasks();
+  } catch (error) {
+    alert("Не удалось удалить: " + error.message);
   }
 }
 
