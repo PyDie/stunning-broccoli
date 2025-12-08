@@ -375,6 +375,19 @@ h1 {
   flex: 1;
   min-height: 0;
   scroll-snap-type: x mandatory;
+
+  /* Scroll indicators (shadows) */
+  background:
+    /* Shadow covers (move with content) */
+    linear-gradient(to right, var(--card-bg) 30%, rgba(255,255,255,0)),
+    linear-gradient(to left, var(--card-bg) 30%, rgba(255,255,255,0)) 100% 0,
+    /* Shadows (fixed) */
+    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.2), rgba(0,0,0,0)),
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.2), rgba(0,0,0,0)) 100% 0;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 
 .kanban__column {
@@ -784,20 +797,7 @@ h1 {
   background-color: rgba(255,255,255,0.5);
 }
 
-.leave-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 2px 5px;
-  background-color: rgba(255, 0, 0, 0.15);
-  border-radius: 4px;
-  color: inherit; /* Inherit color from parent chip */
-  margin-left: 2px;
-}
-.leave-btn:hover {
-  background-color: rgba(255, 0, 0, 0.3);
-}
+
 
 /* Канбан */
 .kanban.hidden {
@@ -806,16 +806,20 @@ h1 {
 
 @media (max-width: 480px) {
   .kanban__column {
-    min-width: 85vw; /* Одна колонка почти на весь экран */
+    min-width: 75vw; /* Уменьшаем ширину, чтобы было видно соседние колонки */
     scroll-snap-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* Легкая тень для выделения карточек */
   }
   
   .kanban__board {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    gap: 12px;
-    padding-bottom: 12px; /* место для скроллбара */
+    gap: 16px; /* Чуть больше отступ */
+    padding-bottom: 12px; 
+    /* Центрируем первую и последнюю колонку при скролле */
+    padding-inline: calc(50vw - 37.5vw); 
+    scroll-padding-inline: calc(50vw - 37.5vw);
   }
 
   .kanban__add {
