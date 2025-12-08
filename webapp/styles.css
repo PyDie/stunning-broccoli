@@ -571,14 +571,8 @@ h1 {
   flex: 1;
 }
 
-.color-picker {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.color-picker input[type="color"] {
-  width: 60px;
+input[type="color"] {
+  width: 100%;
   height: var(--touch-target);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -586,13 +580,6 @@ h1 {
   padding: 2px;
   -webkit-appearance: none;
   appearance: none;
-}
-
-.color-picker input[type="text"] {
-  flex: 1;
-  font-family: monospace;
-  font-size: 14px;
-  min-height: var(--touch-target);
 }
 
 .notification-settings {
@@ -1099,30 +1086,6 @@ h1 {
   flex-shrink: 0;
 }
 
-.test-notification-btn {
-  width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--tg-theme-secondary-bg-color, #f4f6ff);
-  color: var(--tg-theme-text-color, #333);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-  min-height: var(--touch-target);
-  font-weight: 500;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.test-notification-btn:active {
-  transform: scale(0.98);
-  background: rgba(76, 111, 255, 0.15);
-}
-
-.test-notification-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 /* ============================================
    МЕДИА-ЗАПРОСЫ ДЛЯ БОЛЬШИХ ЭКРАНОВ

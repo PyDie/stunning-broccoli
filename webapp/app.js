@@ -40,7 +40,6 @@ const ui = {
   membersSearchInput: document.getElementById("members-search-input"),
   btnCloseMembers: document.getElementById("btn-close-members"),
   notificationsToggle: document.getElementById("notifications-toggle"),
-  testNotificationBtn: document.getElementById("test-notification-btn"),
 };
 
 function formatISO(date) {
@@ -725,32 +724,19 @@ function setupListeners() {
 
     // Обработка цвета
     payload.color = payload.color || null;
-    if (payload.color) {
-      // Убираем пробелы и проверяем формат
-      payload.color = payload.color.trim();
-      if (!payload.color.startsWith("#")) {
-        payload.color = "#" + payload.color;
-      }
-      // Проверяем, что это валидный HEX цвет
-      if (!/^#[0-9A-Fa-f]{6}$/.test(payload.color)) {
-        payload.color = null; // Если невалидный, сбрасываем
-      }
+    if (payload.color && !/^#[0-9A-Fa-f]{6}$/.test(payload.color)) {
+      payload.color = null; // Если невалидный, сбрасываем
     }
 
-    // Обработка уведомлений (только если указано время начала)
-    if (payload.start_time) {
-      payload.notify_before_days = formData.get("notify_day") ? 1 : null;
-      payload.notify_before_hours = formData.get("notify_hour") ? 1 : null;
-    } else {
-      // Если нет времени начала, уведомления за час не имеют смысла
-      payload.notify_before_days = formData.get("notify_day") ? 1 : null;
-      payload.notify_before_hours = null;
-    }
+    // Обработка уведомлений
+    // Уведомление за день работает всегда
+    payload.notify_before_days = formData.get("notify_day") === "on" ? 1 : null;
+    // Уведомление за час работает только если указано время начала
+    payload.notify_before_hours = (formData.get("notify_hour") === "on" && payload.start_time) ? 1 : null;
 
     // Удаляем служебные поля
     delete payload["notify_day"];
     delete payload["notify_hour"];
-    delete payload["color-text"];
 
     try {
       await apiFetch("/tasks", {
@@ -761,9 +747,6 @@ function setupListeners() {
       // Восстанавливаем цвет по умолчанию
       if (ui.taskForm.elements["color"]) {
         ui.taskForm.elements["color"].value = "#4c6fff";
-      }
-      if (ui.taskForm.elements["color-text"]) {
-        ui.taskForm.elements["color-text"].value = "#4c6fff";
       }
       syncFormDate();
       syncFormScope();
@@ -805,25 +788,6 @@ function setupListeners() {
     });
   }
 
-  if (ui.testNotificationBtn) {
-    ui.testNotificationBtn.addEventListener("click", sendTestNotification);
-  }
-
-  // Синхронизация цветов в форме
-  const colorInput = ui.taskForm.elements["color"];
-  const colorTextInput = ui.taskForm.elements["color-text"];
-  if (colorInput && colorTextInput) {
-    colorInput.addEventListener("input", (e) => {
-      colorTextInput.value = e.target.value;
-    });
-    colorTextInput.addEventListener("input", (e) => {
-      let value = e.target.value;
-      if (!value.startsWith("#")) value = "#" + value;
-      if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-        colorInput.value = value;
-      }
-    });
-  }
 
   // Управление доступностью чекбокса "Уведомить за час"
   const startTimeInput = ui.taskForm.elements["start_time"];
@@ -870,24 +834,6 @@ async function updateNotificationSettings(enabled) {
   }
 }
 
-async function sendTestNotification() {
-  if (ui.testNotificationBtn) {
-    ui.testNotificationBtn.disabled = true;
-    ui.testNotificationBtn.textContent = "Отправка...";
-  }
-  
-  try {
-    await apiFetch("/users/me/notifications/test", { method: "POST" });
-    alert("Тестовое уведомление отправлено! Проверьте Telegram.");
-  } catch (error) {
-    alert("Ошибка отправки тестового уведомления: " + error.message);
-  } finally {
-    if (ui.testNotificationBtn) {
-      ui.testNotificationBtn.disabled = false;
-      ui.testNotificationBtn.textContent = "Отправить тестовое уведомление";
-    }
-  }
-}
 
 function renderCurrentView() {
   const isCalendar = state.viewMode === "calendar";
