@@ -32,7 +32,7 @@ body {
 }
 
 .app {
-  max-width: 1100px;
+  max-width: 960px;
   width: 100%;
   margin: 0 auto;
   padding: 12px clamp(10px, 4vw, 20px) 20px;
@@ -404,7 +404,7 @@ h1 {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 960px) {
   .layout {
     grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
     grid-template-rows: auto;
@@ -540,7 +540,7 @@ h1 {
 }
 
 .kanban__column {
-  min-width: 180px;
+  min-width: 160px;
   background: linear-gradient(180deg, rgba(76,111,255,0.05), rgba(255,255,255,0.9));
   border-radius: 16px;
   padding: 12px;
