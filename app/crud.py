@@ -137,6 +137,16 @@ async def add_user_to_family(db: AsyncSession, user_id: int, invite_code: str) -
     return family
 
 
+async def remove_user_from_family(db: AsyncSession, user_id: int, family_id: int) -> None:
+    """Асинхронное удаление пользователя из семьи."""
+    stmt = delete(models.FamilyMembership).where(
+        models.FamilyMembership.user_id == user_id,
+        models.FamilyMembership.family_id == family_id
+    )
+    await db.execute(stmt)
+    await db.commit()
+
+
 # ----------------------------------------------------------------------
 # TASK FUNCTIONS
 # ----------------------------------------------------------------------

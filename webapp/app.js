@@ -153,6 +153,7 @@ function renderScopeChips() {
       const shareBtn = document.createElement("button");
       shareBtn.className = "share-btn";
       shareBtn.innerHTML = "🔗"; // Или иконка
+      shareBtn.title = "Пригласить участника";
       shareBtn.onclick = (e) => {
         e.stopPropagation(); // Чтобы не кликнулся сам чипс
         const family = state.families.find((f) => f.id === scope.familyId);
@@ -161,6 +162,19 @@ function renderScopeChips() {
         }
       };
       chip.appendChild(shareBtn);
+
+      const leaveBtn = document.createElement("button");
+      leaveBtn.className = "leave-btn";
+      leaveBtn.innerHTML = "✕"; 
+      leaveBtn.title = "Покинуть семью";
+      leaveBtn.onclick = (e) => {
+        e.stopPropagation();
+        const family = state.families.find((f) => f.id === scope.familyId);
+        if (family) {
+          leaveFamily(scope.familyId, family.name);
+        }
+      };
+      chip.appendChild(leaveBtn);
     }
     ui.scopeChips.appendChild(chip);
     
@@ -411,6 +425,25 @@ async function checkInvite() {
   }
 }
 
+async function leaveFamily(familyId, familyName) {
+  if (!confirm(`Вы действительно хотите покинуть семью "${familyName}"?`)) return;
+  try {
+    await apiFetch(`/families/${familyId}/leave`, { method: "DELETE" });
+    alert(`Вы покинули семью "${familyName}"`);
+    
+    // Если мы были в этой семье, переключаемся на личное
+    if (state.scope.type === "family" && Number(state.scope.familyId) === Number(familyId)) {
+        state.scope = { type: "personal", familyId: null };
+        syncFormScope();
+    }
+    
+    await loadFamilies();
+    await fetchTasks(); // Перезагружаем задачи, т.к. семейные больше недоступны
+  } catch (error) {
+    alert("Не удалось покинуть семью: " + error.message);
+  }
+}
+
 function setupListeners() {
   ui.btnPrev.addEventListener("click", () => {
     state.currentMonth = new Date(
@@ -565,7 +598,9 @@ function renderKanban() {
     addBtn.textContent = "+";
     addBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      quickAddTask(key);
+      setSelectedDateFromISO(key);
+      ui.taskForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => ui.taskForm.elements["title"].focus(), 500);
     });
     header.appendChild(addBtn);
     column.appendChild(header);
@@ -649,41 +684,6 @@ async function moveTaskToDate(taskId, newDate) {
     state.taskMap[prevDate] = [...(state.taskMap[prevDate] || []), task];
     state.taskMap[prevDate].sort(sortTasks);
     renderCurrentView();
-  }
-}
-
-async function quickAddTask(dateISO) {
-  console.log("Quick add task for date:", dateISO);
-  const title = prompt("Название задачи для " + dateISO);
-  if (!title) return;
-  
-  const payload = {
-    title,
-    description: "",
-    date: dateISO,
-    scope: state.scope.type,
-    family_id: state.scope.familyId ?? null,
-    start_time: null,
-    end_time: null,
-  };
-  
-  console.log("Creating task with payload:", payload);
-  
-  try {
-    if (payload.scope === "family" && !payload.family_id) {
-      alert("Выбери семейный календарь");
-      return;
-    }
-    await apiFetch("/tasks", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    console.log("Task created successfully");
-    await fetchTasks();
-    setSelectedDateFromISO(dateISO);
-  } catch (error) {
-    console.error("Error creating task:", error);
-    alert(error.message);
   }
 }
 

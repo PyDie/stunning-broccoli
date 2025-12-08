@@ -98,3 +98,39 @@ async def join_family_by_invite(
     """
     family = await crud.add_user_to_family(db, current_user.id, payload.invite_code)
     return family
+
+
+@router.delete("/{family_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_family(
+    family_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Выход текущего пользователя из семьи.
+    """
+    if not await crud.is_member(db, current_user.id, family_id):
+        raise HTTPException(status_code=404, detail="Family membership not found")
+        
+    await crud.remove_user_from_family(db, current_user.id, family_id)
+    return None
+
+
+# -----------------------------------------------------------
+# 4. DELETE /families/{family_id}/leave
+# -----------------------------------------------------------
+@router.delete("/{family_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_family(
+    family_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Выход текущего пользователя из семьи.
+    """
+    # Проверяем, состоит ли пользователь в семье
+    if not await crud.is_member(db, current_user.id, family_id):
+        raise HTTPException(status_code=404, detail="Family membership not found")
+        
+    await crud.remove_user_from_family(db, current_user.id, family_id)
+    return None
