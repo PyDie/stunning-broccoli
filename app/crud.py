@@ -202,3 +202,31 @@ async def create_task(
     await db.commit()
     await db.refresh(task)
     return task
+
+
+async def update_task(
+    db: AsyncSession,
+    user_id: int,
+    task_id: int,
+    payload: schemas.TaskUpdate,
+) -> models.Task:
+    """Обновление задачи (в том числе смена даты для канбана)."""
+    task = await db.get(models.Task, task_id)
+    if not task:
+        raise ValueError("Task not found")
+
+    if task.scope == models.TaskScope.personal:
+        if task.owner_id != user_id:
+            raise PermissionError("Forbidden")
+    elif task.scope == models.TaskScope.family:
+        if not task.family_id or not await is_member(db, user_id, task.family_id):
+            raise PermissionError("Forbidden")
+
+    for field in ["title", "description", "date", "start_time", "end_time"]:
+        value = getattr(payload, field)
+        if value is not None:
+            setattr(task, field, value)
+
+    await db.commit()
+    await db.refresh(task)
+    return task

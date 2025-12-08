@@ -14,21 +14,36 @@
         <h1>TGCalendar</h1>
         <p class="subtitle">Личный и семейный календарь задач</p>
       </div>
-      <div class="month-nav">
-        <button id="btn-prev-month" aria-label="Предыдущий месяц">←</button>
-        <span id="month-label"></span>
-        <button id="btn-next-month" aria-label="Следующий месяц">→</button>
+      <div class="header-controls">
+        <div class="month-nav">
+          <button id="btn-prev-month" aria-label="Предыдущий месяц">←</button>
+          <span id="month-label"></span>
+          <button id="btn-next-month" aria-label="Следующий месяц">→</button>
+        </div>
+        <div class="view-switch" role="group" aria-label="Переключатель вида">
+          <button id="btn-view-calendar" class="active" type="button">Календарь</button>
+          <button id="btn-view-kanban" type="button">Канбан</button>
+        </div>
       </div>
     </header>
 
     <section class="scopes" id="scope-chips"></section>
 
     <main class="layout">
-      <section class="calendar">
+      <section class="calendar" id="calendar-view">
         <div class="weekdays">
           <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
         </div>
         <div class="grid" id="calendar-grid"></div>
+      </section>
+
+      <section class="kanban hidden" id="kanban-view">
+        <div class="kanban__header">
+          <div>
+            <p class="subtitle">Перетаскивай задачи между днями</p>
+          </div>
+        </div>
+        <div class="kanban__board" id="kanban-board" aria-live="polite"></div>
       </section>
 
       <section class="sidebar">
@@ -77,6 +92,7 @@
   <template id="task-item-template">
     <li class="task-item">
       <div class="task-item__title"></div>
+      <div class="task-item__description"></div>
       <div class="task-item__meta"></div>
     </li>
   </template>

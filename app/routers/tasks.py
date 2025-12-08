@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession # 👈 1. Меняем импорт сессии SQLAlchemy
 
 from app import schemas, crud
@@ -45,3 +45,18 @@ async def create_task( # 👈 3. Функция стала async
     # 5. Добавляем await перед вызовом асинхронной CRUD-функции
     task = await crud.create_task(db, current_user.id, payload)
     return task
+
+
+@router.patch("/{task_id}", response_model=schemas.TaskRead)
+async def update_task(
+    task_id: int,
+    payload: schemas.TaskUpdate,
+    current_user: schemas.UserRead = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    try:
+        return await crud.update_task(db, current_user.id, task_id, payload)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

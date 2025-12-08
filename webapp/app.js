@@ -10,16 +10,22 @@ const state = {
   selectedDate: new Date(),
   tasks: [],
   taskMap: {},
+  viewMode: "calendar", // "calendar" | "kanban"
 };
 
 const ui = {
   monthLabel: document.getElementById("month-label"),
   calendarGrid: document.getElementById("calendar-grid"),
+  calendarView: document.getElementById("calendar-view"),
+  kanbanView: document.getElementById("kanban-view"),
+  kanbanBoard: document.getElementById("kanban-board"),
   selectedDate: document.getElementById("selected-date"),
   taskList: document.getElementById("task-list"),
   scopeChips: document.getElementById("scope-chips"),
   btnPrev: document.getElementById("btn-prev-month"),
   btnNext: document.getElementById("btn-next-month"),
+  btnViewCalendar: document.getElementById("btn-view-calendar"),
+  btnViewKanban: document.getElementById("btn-view-kanban"),
   taskForm: document.getElementById("task-form"),
   taskTemplate: document.getElementById("task-item-template"),
   familyModal: document.getElementById("family-modal"),
@@ -184,12 +190,41 @@ function renderCalendar() {
     if (formatISO(day) === formatISO(state.selectedDate)) {
       cell.classList.add("selected");
     }
-    cell.textContent = day.getDate();
+    const header = document.createElement("div");
+    header.className = "day__header";
+    header.textContent = day.getDate();
+    cell.appendChild(header);
+
     const key = formatISO(day);
-    if (state.taskMap[key]?.length) {
+    const tasksForDay = state.taskMap[key] || [];
+    if (tasksForDay.length) {
       const dot = document.createElement("span");
       dot.className = "dot";
       cell.appendChild(dot);
+
+      const taskList = document.createElement("div");
+      taskList.className = "day__tasks";
+      tasksForDay.slice(0, 2).forEach((task) => {
+        const chip = document.createElement("div");
+        chip.className = "day-task-chip";
+        if (task.start_time) {
+          const time = document.createElement("span");
+          time.className = "day-task-chip__time";
+          time.textContent = task.start_time.slice(0, 5);
+          chip.appendChild(time);
+        }
+        const title = document.createElement("span");
+        title.textContent = task.title;
+        chip.appendChild(title);
+        taskList.appendChild(chip);
+      });
+      if (tasksForDay.length > 2) {
+        const more = document.createElement("div");
+        more.className = "day-task-chip";
+        more.textContent = `+${tasksForDay.length - 2} ещё`;
+        taskList.appendChild(more);
+      }
+      cell.appendChild(taskList);
     }
     cell.addEventListener("click", () => {
       state.selectedDate = day;
@@ -219,9 +254,9 @@ function renderTaskList() {
     node.querySelector(".task-item__title").textContent = task.title;
     const descEl = node.querySelector(".task-item__description");
     if (task.description) {
-        descEl.textContent = task.description;
+      descEl.textContent = task.description;
     } else {
-        descEl.remove(); // Удаляем элемент, если описания нет
+      descEl.remove();
     }
     const meta = [];
     if (task.start_time) meta.push(task.start_time.slice(0, 5));
@@ -269,7 +304,7 @@ async function fetchTasks() {
     acc[key].push(task);
     return acc;
   }, {});
-  renderCalendar();
+  renderCurrentView();
   renderTaskList();
 }
 
@@ -323,6 +358,7 @@ function shareFamilyInvite(familyId, familyName) {
 }
 
 async function checkInvite() {
+  if (!tg?.initDataUnsafe) return;
   // Получаем start_param из Telegram
   const startParam = tg.initDataUnsafe?.start_param;
   
@@ -415,6 +451,157 @@ function setupListeners() {
       alert(error.message);
     }
   });
+
+  ui.btnViewCalendar.addEventListener("click", () => {
+    if (state.viewMode !== "calendar") {
+      state.viewMode = "calendar";
+      renderCurrentView();
+    }
+  });
+
+  ui.btnViewKanban.addEventListener("click", () => {
+    if (state.viewMode !== "kanban") {
+      state.viewMode = "kanban";
+      renderCurrentView();
+      renderKanban();
+    }
+  });
+}
+
+function renderCurrentView() {
+  const isCalendar = state.viewMode === "calendar";
+  ui.calendarView.classList.toggle("hidden", !isCalendar);
+  ui.kanbanView.classList.toggle("hidden", isCalendar);
+  ui.btnViewCalendar.classList.toggle("active", isCalendar);
+  ui.btnViewKanban.classList.toggle("active", !isCalendar);
+  if (isCalendar) {
+    renderCalendar();
+  } else {
+    renderKanban();
+  }
+}
+
+function buildMonthDays() {
+  const { start, end } = monthBounds(state.currentMonth);
+  const days = [];
+  const iter = new Date(start);
+  while (iter <= end) {
+    days.push(new Date(iter));
+    iter.setDate(iter.getDate() + 1);
+  }
+  return days;
+}
+
+function renderKanban() {
+  ui.kanbanBoard.innerHTML = "";
+  const days = buildMonthDays();
+  days.forEach((day) => {
+    const key = formatISO(day);
+    const column = document.createElement("div");
+    column.className = "kanban__column";
+    column.dataset.date = key;
+
+    column.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      column.classList.add("drop-target");
+    });
+    column.addEventListener("dragleave", () => column.classList.remove("drop-target"));
+    column.addEventListener("drop", (event) => {
+      event.preventDefault();
+      column.classList.remove("drop-target");
+      const taskId = event.dataTransfer.getData("taskId");
+      if (taskId) moveTaskToDate(Number(taskId), key);
+    });
+
+    const header = document.createElement("div");
+    header.className = "kanban__column-header";
+    header.innerHTML = `<span>${day.getDate()} ${day.toLocaleDateString("ru-RU", { month: "short" })}</span>`;
+    const count = document.createElement("span");
+    count.className = "kanban__count";
+    const tasksForDay = state.taskMap[key] || [];
+    tasksForDay.sort(sortTasks);
+    count.textContent = `${tasksForDay.length}`;
+    header.appendChild(count);
+    column.appendChild(header);
+
+    const list = document.createElement("div");
+    list.className = "kanban__list";
+
+    tasksForDay.forEach((task) => {
+      const card = document.createElement("div");
+      card.className = "kanban-card";
+      card.draggable = true;
+      card.dataset.taskId = task.id;
+      card.addEventListener("dragstart", (event) => {
+        event.dataTransfer.setData("taskId", String(task.id));
+      });
+
+      const title = document.createElement("div");
+      title.className = "kanban-card__title";
+      title.textContent = task.title;
+      card.appendChild(title);
+
+      if (task.description) {
+        const desc = document.createElement("div");
+        desc.className = "kanban-card__description";
+        desc.textContent = task.description;
+        card.appendChild(desc);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "kanban-card__meta";
+      const metaParts = [];
+      if (task.start_time) metaParts.push(task.start_time.slice(0, 5));
+      if (task.scope === "family" && task.family_id) {
+        const family = state.families.find((f) => f.id === task.family_id);
+        if (family) metaParts.push(family.name);
+      }
+      meta.textContent = metaParts.join(" • ") || "Без времени";
+      card.appendChild(meta);
+
+      list.appendChild(card);
+    });
+
+    column.appendChild(list);
+    ui.kanbanBoard.appendChild(column);
+  });
+}
+
+async function moveTaskToDate(taskId, newDate) {
+  const task = state.tasks.find((t) => t.id === taskId);
+  if (!task || task.date === newDate) return;
+
+  const prevDate = task.date;
+  task.date = newDate;
+  state.taskMap[prevDate] = (state.taskMap[prevDate] || []).filter((t) => t.id !== taskId);
+  state.taskMap[newDate] = [...(state.taskMap[newDate] || []), task];
+  state.taskMap[newDate].sort(sortTasks);
+
+  renderCurrentView();
+  if (formatISO(state.selectedDate) === prevDate) renderTaskList();
+  try {
+    await apiFetch(`/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ date: newDate }),
+    });
+  } catch (error) {
+    alert("Не удалось обновить задачу: " + error.message);
+    // откат
+    task.date = prevDate;
+    state.taskMap[newDate] = (state.taskMap[newDate] || []).filter((t) => t.id !== taskId);
+    state.taskMap[prevDate] = [...(state.taskMap[prevDate] || []), task];
+    state.taskMap[prevDate].sort(sortTasks);
+    renderCurrentView();
+  }
+}
+
+function sortTasks(a, b) {
+  const timeA = a.start_time || "";
+  const timeB = b.start_time || "";
+  if (timeA === timeB) return a.title.localeCompare(b.title);
+  if (!timeA) return 1;
+  if (!timeB) return -1;
+  return timeA.localeCompare(timeB);
 }
 
 async function init() {
@@ -429,6 +616,7 @@ async function init() {
     syncFormScope();
     setupListeners();
     await fetchTasks();
+    renderCurrentView();
   } catch (error) {
     console.error(error);
     alert(error.message);
