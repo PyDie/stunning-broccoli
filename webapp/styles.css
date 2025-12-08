@@ -12,10 +12,16 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100svh;
+  height: 100svh;
   background: var(--tg-theme-bg-color, #f6f6f6);
+  overflow: hidden; /* миниапп без прокрутки страницы */
 }
 
 .hidden {
@@ -25,7 +31,11 @@ body {
 .app {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
+  padding: 16px clamp(12px, 4vw, 24px) 24px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .app__header {
@@ -96,7 +106,7 @@ h1 {
 }
 
 .scopes {
-  margin: 24px 0 16px;
+  margin: 8px 0 4px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -120,23 +130,33 @@ h1 {
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
-  gap: 24px;
+  gap: 12px;
+  flex: 1;
+  min-height: 0; /* позволяет внутренним блокам ужиматься без прокрутки body */
 }
 
 .calendar,
 .kanban,
 .sidebar {
   background: var(--card-bg);
-  border-radius: 24px;
-  padding: 24px;
+  border-radius: 20px;
+  padding: 16px;
   border: 1px solid var(--border);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .weekdays, .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
+}
+
+.grid {
+  flex: 1;
+  min-height: 0;
 }
 
 .weekdays span {
@@ -219,7 +239,8 @@ h1 {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  overflow: hidden;
 }
 
 .selected-date {
@@ -233,6 +254,8 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .task-item {
@@ -304,10 +327,57 @@ h1 {
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    overflow: hidden;
   }
 
   .day {
     min-height: 72px;
+  }
+
+  .calendar,
+  .kanban,
+  .sidebar {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .app__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-controls {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .month-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .view-switch {
+    width: 100%;
+  }
+
+  .view-switch button {
+    flex: 1;
+    text-align: center;
+  }
+
+  .layout {
+    gap: 16px;
+  }
+
+  .day {
+    min-height: 64px;
+  }
+
+  .kanban__column {
+    min-width: 180px;
   }
 }
 
@@ -422,6 +492,7 @@ h1 {
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 8px;
+  min-height: 0;
 }
 
 .kanban__column {
