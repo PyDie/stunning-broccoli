@@ -599,7 +599,7 @@ function renderMembersList(members, searchQuery = "") {
       // Кнопка удаления
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "member-action-btn member-action-btn-danger";
-      deleteBtn.textContent = "Удалить";
+      deleteBtn.textContent = "X";
       deleteBtn.onclick = (e) => {
         e.stopPropagation();
         removeMember(member.user_id, fullName);
@@ -975,7 +975,7 @@ function renderKanban() {
 
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "kanban__delete";
-      deleteBtn.textContent = "Удалить";
+      deleteBtn.textContent = "X";
       deleteBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         confirmDelete(task.id);
