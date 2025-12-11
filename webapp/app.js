@@ -4,6 +4,137 @@ const params = new URLSearchParams(window.location.search);
 // Debug режим только для разработки (проверка через параметр URL)
 const isDevelopment = params.get("dev") === "true";
 
+const APP_VERSION = "2025-12-12-uiux-debug-1";
+
+function agentLog(payload) {
+  try {
+    const entry = {
+      ...payload,
+      timestamp: payload.timestamp || Date.now(),
+      sessionId: payload.sessionId || "debug-session",
+    };
+    // in-memory buffer (works even if network blocked)
+    const buf = (window.__agentLogs = window.__agentLogs || []);
+    buf.push(entry);
+    if (buf.length > 200) buf.splice(0, buf.length - 200);
+
+    // persist for post-crash retrieval (dev only)
+    if (isDevelopment) {
+      try {
+        const serialized = JSON.stringify(buf.slice(-200));
+        localStorage.setItem("__agentLogs", serialized);
+      } catch {}
+    }
+
+    // best-effort network ingest (may be blocked in TG WebView)
+    fetch("http://127.0.0.1:7242/ingest/039189cd-7fb5-4777-b167-f32680af685e", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    }).catch(() => {});
+  } catch {}
+}
+
+function mountDevDebugPanel() {
+  if (!isDevelopment) return;
+  if (document.getElementById("agent-debug-panel")) return;
+  const panel = document.createElement("div");
+  panel.id = "agent-debug-panel";
+  panel.style.cssText =
+    "position:fixed;left:12px;bottom:12px;z-index:99999;max-width:calc(100vw - 24px);background:rgba(0,0,0,.75);color:#fff;border-radius:12px;padding:10px 12px;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;backdrop-filter:blur(8px)";
+  panel.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
+      <div><strong>Debug</strong> <span style="opacity:.85">${APP_VERSION}</span></div>
+      <div style="display:flex;gap:6px">
+        <button type="button" id="agent-debug-copy" style="appearance:none;border:0;border-radius:10px;padding:6px 10px;background:#4c6fff;color:#fff;font-weight:600;cursor:pointer">Copy logs</button>
+        <button type="button" id="agent-debug-hide" style="appearance:none;border:0;border-radius:10px;padding:6px 10px;background:rgba(255,255,255,.14);color:#fff;cursor:pointer">Hide</button>
+      </div>
+    </div>
+    <div id="agent-debug-status" style="margin-top:6px;opacity:.9;word-break:break-word"></div>
+  `;
+  document.body.appendChild(panel);
+
+  const status = panel.querySelector("#agent-debug-status");
+  const refresh = () => {
+    const buf = window.__agentLogs || [];
+    const last = buf[buf.length - 1];
+    status.textContent = last ? `${last.location} — ${last.message}` : "логов пока нет";
+  };
+  refresh();
+  setInterval(refresh, 400);
+
+  panel.querySelector("#agent-debug-hide").addEventListener("click", () => panel.remove());
+  panel.querySelector("#agent-debug-copy").addEventListener("click", async () => {
+    try {
+      const buf = window.__agentLogs || JSON.parse(localStorage.getItem("__agentLogs") || "[]");
+      const text = buf.map((x) => JSON.stringify(x)).join("\n");
+      await navigator.clipboard.writeText(text);
+      status.textContent = `скопировано строк: ${buf.length}`;
+    } catch (e) {
+      status.textContent = `не удалось скопировать: ${String(e?.message || e)}`;
+    }
+  });
+}
+
+try {
+  document.documentElement.dataset.appVersion = APP_VERSION;
+  if (isDevelopment) {
+    // ensure panel mounts even if init() fails early
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", mountDevDebugPanel, { once: true });
+    } else {
+      mountDevDebugPanel();
+    }
+  }
+} catch {}
+
+// #region agent log
+agentLog({
+  location: "webapp/app.js:module",
+  message: "module_loaded",
+  data: {
+    appVersion: APP_VERSION,
+    href: window.location.href,
+    hasTg: !!window.Telegram?.WebApp,
+    hasInitData: !!window.Telegram?.WebApp?.initData,
+    hasFamilySelect: !!document.getElementById("family-select"),
+    hasScopeChips: !!document.getElementById("scope-chips"),
+  },
+  runId: "pre-fix",
+  hypothesisId: "A",
+});
+// #endregion
+
+// #region agent log
+window.addEventListener("error", (e) => {
+  agentLog({
+    location: "webapp/app.js:window.error",
+    message: "window_error",
+    data: {
+      message: e?.message,
+      filename: e?.filename,
+      lineno: e?.lineno,
+      colno: e?.colno,
+      stack: String(e?.error?.stack || "").slice(0, 1200),
+    },
+    runId: "pre-fix",
+    hypothesisId: "B",
+  });
+});
+// #endregion
+
+// #region agent log
+window.addEventListener("unhandledrejection", (e) => {
+  agentLog({
+    location: "webapp/app.js:window.unhandledrejection",
+    message: "unhandled_rejection",
+    data: { reason: String(e?.reason?.message || e?.reason || "").slice(0, 1200) },
+    runId: "pre-fix",
+    hypothesisId: "C",
+  });
+});
+// #endregion
+
 const state = {
   token: null,
   debugUserId: isDevelopment ? params.get("debug_user") : null,
@@ -384,6 +515,23 @@ function syncFormDate() {
 }
 
 function syncFormScope() {
+  // #region agent log
+  agentLog({
+    location: "webapp/app.js:syncFormScope:entry",
+    message: "syncFormScope_entry",
+    data: {
+      appVersion: APP_VERSION,
+      hasFamilySelect: !!ui.familySelect,
+      familiesCount: Array.isArray(state.families) ? state.families.length : null,
+      scopeType: state.scope?.type,
+      scopeFamilyId: state.scope?.familyId,
+      willSetFamily: !!(ui.familySelect && state.scope?.type === "family" && state.scope?.familyId),
+    },
+    runId: "pre-fix",
+    hypothesisId: "B",
+  });
+  // #endregion
+
   if (ui.familySelect) {
     if (state.scope.type === "family" && state.scope.familyId) {
       ui.familySelect.value = state.scope.familyId;
@@ -393,6 +541,20 @@ function syncFormScope() {
       ui.familySelect.disabled = state.families.length === 0;
     }
   }
+
+  // #region agent log
+  agentLog({
+    location: "webapp/app.js:syncFormScope:exit",
+    message: "syncFormScope_exit",
+    data: {
+      hasFamilySelect: !!ui.familySelect,
+      familySelectValue: ui.familySelect?.value,
+      familySelectDisabled: ui.familySelect?.disabled,
+    },
+    runId: "pre-fix",
+    hypothesisId: "B",
+  });
+  // #endregion
 }
 
 async function fetchTasks() {
@@ -1142,6 +1304,24 @@ function sortTasks(a, b) {
 }
 
 async function init() {
+  // #region agent log
+  agentLog({
+    location: "webapp/app.js:init:entry",
+    message: "init_entry",
+    data: {
+      appVersion: APP_VERSION,
+      isDevelopment,
+      hasTg: !!tg,
+      hasInitData: !!tg?.initData,
+      debugUserId: state.debugUserId,
+      initialScopeType: state.scope?.type,
+      initialScopeFamilyId: state.scope?.familyId,
+    },
+    runId: "pre-fix",
+    hypothesisId: "A",
+  });
+  // #endregion
+
   try {
     await authenticate();
     
@@ -1149,6 +1329,21 @@ async function init() {
     await checkInvite(); 
 
     await loadFamilies(); // Теперь загружаем семьи (включая новую, если вступили)
+
+    // #region agent log
+    agentLog({
+      location: "webapp/app.js:init:afterLoadFamilies",
+      message: "after_loadFamilies",
+      data: {
+        familiesCount: Array.isArray(state.families) ? state.families.length : null,
+        scopeType: state.scope?.type,
+        scopeFamilyId: state.scope?.familyId,
+      },
+      runId: "pre-fix",
+      hypothesisId: "D",
+    });
+    // #endregion
+
     syncFormDate();
     syncFormScope();
     setupListeners();
