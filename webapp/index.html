@@ -21,39 +21,48 @@
 </head>
 <body>
   <div class="app">
-    <header class="app__header">
-      <div>
-        <h1>TGCalendar</h1>
-        <p class="subtitle">Личный и групповой календарь задач</p>
+    <!-- Верхняя панель навигации -->
+    <header class="top-bar">
+      <button class="top-bar__back" id="btn-back" aria-label="Назад">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <div class="top-bar__title">
+        <span id="month-year-label">декабрь 2025 г.</span>
       </div>
-      <div class="header-controls">
-        <div class="month-nav">
-          <button id="btn-prev-month" aria-label="Предыдущий месяц">←</button>
-          <span id="month-label"></span>
-          <button id="btn-next-month" aria-label="Следующий месяц">→</button>
-        </div>
-        <div class="view-switch" role="group" aria-label="Переключатель вида">
-          <button id="btn-view-calendar" class="active" type="button">Календарь</button>
-          <button id="btn-view-kanban" type="button">Канбан</button>
-        </div>
-      </div>
+      <button class="top-bar__forward" id="btn-forward" aria-label="Вперёд">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </button>
     </header>
 
+    <!-- Таб-переключатель -->
+    <div class="tab-switcher">
+      <button class="tab-switcher__tab" id="btn-view-calendar" type="button">Календарь</button>
+      <button class="tab-switcher__tab" id="btn-view-kanban" type="button">Неделя</button>
+    </div>
+
+    <!-- Чипсы групп -->
     <section class="scopes" id="scope-chips"></section>
 
-    <main class="layout">
-      <section class="calendar" id="calendar-view">
-        <div class="weekdays">
+    <!-- Основной контент -->
+    <main class="main-content">
+      <!-- Вид календаря (месяц) -->
+      <section class="calendar-view" id="calendar-view">
+        <div class="calendar-weekdays">
           <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
         </div>
-        <div class="grid" id="calendar-grid"></div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div class="selected-day-tasks" id="selected-day-tasks">
+          <ul class="task-list" id="task-list"></ul>
+        </div>
       </section>
 
-      <section class="kanban hidden" id="kanban-view">
-        <div class="kanban__header">
-          <div>
-            <p class="subtitle">Перетаскивай задачи между днями</p>
-          </div>
+      <!-- Вид недели (канбан) -->
+      <section class="week-view hidden" id="kanban-view">
+        <div class="week-view__header">
           <div class="kanban__controls">
             <label class="kanban__days-select-label">
               Дней:
@@ -66,106 +75,140 @@
             </label>
           </div>
         </div>
-        <div class="kanban__board" id="kanban-board" aria-live="polite"></div>
+        <div class="week-view__board" id="kanban-board" aria-live="polite"></div>
       </section>
+    </main>
 
-      <section class="sidebar">
-        <div class="selected-date" id="selected-date"></div>
-        <ul class="task-list" id="task-list"></ul>
-
+    <!-- Overlay для bottom sheet -->
+    <div class="bottom-sheet-overlay" id="task-form-overlay"></div>
+    
+    <!-- Bottom Sheet для создания задачи -->
+    <div class="bottom-sheet" id="task-form-sheet">
+      <div class="bottom-sheet__handle"></div>
+      <div class="bottom-sheet__content">
+        <h2 class="bottom-sheet__title">Новая задача</h2>
         <form id="task-form" class="task-form">
-          <h2>Новая задача</h2>
-          <label>
-            Название
-            <input type="text" name="title" required />
+          <label class="form-field">
+            <span class="form-field__label">Название</span>
+            <input type="text" name="title" class="form-input" placeholder="Например, встреча с клиентом" required />
           </label>
-          <label>
-            Описание
-            <textarea name="description" rows="2"></textarea>
-          </label>
-          <div class="form-row">
-            <label>
-              Дата
-              <input type="date" name="date" required />
-            </label>
-            <label>
-            Время с
-              <input type="time" name="start_time" />
-            </label>
-          <label>
-            Время до
-            <input type="time" name="end_time" />
-          </label>
-          </div>
-          <label>
-            Тип
-            <select name="scope">
-              <option value="personal">Личное</option>
-              <option value="family">Групповое</option>
-            </select>
-          </label>
-          <label>
-            Группа
-            <select name="family_id" disabled>
+          
+          <label class="form-field">
+            <span class="form-field__label">Группа</span>
+            <select name="family_id" class="form-select" id="family-select">
               <option value="">Не выбрана</option>
             </select>
           </label>
-          <label>
-            Теги (через запятую)
-            <input type="text" name="tags" placeholder="работа, важное, срочно" />
+          
+          <label class="form-field">
+            <span class="form-field__label">Теги (через запятую)</span>
+            <input type="text" name="tags" class="form-input" placeholder="работа, важное, срочно" />
           </label>
-          <label>
-            Цвет
-            <input type="color" name="color" id="task-color" value="#4c6fff" />
-          </label>
-          <div class="notification-settings">
-            <h4>Уведомления о предстоящей задаче</h4>
-            <label class="notification-option">
-              <input type="checkbox" name="notify_day" id="notify-day" />
-              <span>Уведомить за день до начала</span>
+          
+          <div class="form-row">
+            <label class="form-field">
+              <span class="form-field__label">Начало</span>
+              <input type="time" name="start_time" class="form-input" />
             </label>
-            <label class="notification-option">
-              <input type="checkbox" name="notify_hour" id="notify-hour" />
-              <span>Уведомить за час до начала <small>(требуется время начала)</small></span>
+            <label class="form-field">
+              <span class="form-field__label">Конец</span>
+              <input type="time" name="end_time" class="form-input" />
             </label>
           </div>
-          <button type="submit">Добавить</button>
+          
+          <input type="date" name="date" id="task-date-input" hidden required />
+          
+          <div class="form-section">
+            <h3 class="form-section__title">Цвет категории</h3>
+            <div class="color-picker-row" id="color-picker-row">
+              <input type="radio" name="color" id="color-blue" value="#4c6fff" checked />
+              <label for="color-blue" class="color-radio" style="background: #4c6fff;"></label>
+              
+              <input type="radio" name="color" id="color-green" value="#10b981" />
+              <label for="color-green" class="color-radio" style="background: #10b981;"></label>
+              
+              <input type="radio" name="color" id="color-red" value="#ef4444" />
+              <label for="color-red" class="color-radio" style="background: #ef4444;"></label>
+              
+              <input type="radio" name="color" id="color-yellow" value="#f59e0b" />
+              <label for="color-yellow" class="color-radio" style="background: #f59e0b;"></label>
+              
+              <input type="radio" name="color" id="color-purple" value="#8b5cf6" />
+              <label for="color-purple" class="color-radio" style="background: #8b5cf6;"></label>
+              
+              <input type="radio" name="color" id="color-pink" value="#ec4899" />
+              <label for="color-pink" class="color-radio" style="background: #ec4899;"></label>
+              
+              <input type="radio" name="color" id="color-teal" value="#14b8a6" />
+              <label for="color-teal" class="color-radio" style="background: #14b8a6;"></label>
+              
+              <input type="radio" name="color" id="color-orange" value="#f97316" />
+              <label for="color-orange" class="color-radio" style="background: #f97316;"></label>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h3 class="form-section__title">Уведомления</h3>
+            <div class="notification-chips">
+              <input type="checkbox" name="notify_15min" id="notify-15min" value="15" />
+              <label for="notify-15min" class="notification-chip">За 15 мин</label>
+              
+              <input type="checkbox" name="notify_hour" id="notify-hour" value="1" />
+              <label for="notify-hour" class="notification-chip">За час</label>
+              
+              <input type="checkbox" name="notify_day" id="notify-day" value="1" />
+              <label for="notify-day" class="notification-chip">За день</label>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn-primary">Добавить</button>
         </form>
-
-      </section>
-    </main>
-  </div>
-
-  <template id="task-item-template">
-    <li class="task-item">
-      <div class="task-item__title"></div>
-      <div class="task-item__description"></div>
-      <div class="task-item__meta"></div>
-      <button class="task-item__delete" type="button" aria-label="Удалить задачу">✕</button>
-    </li>
-  </template>
-  <div id="family-modal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Создать группу</h3>
-      <input type="text" id="new-family-name" placeholder="Название (например: Ивановы)" />
-      <div class="modal-actions">
-        <button id="btn-cancel-family" type="button">Отмена</button>
-        <button id="btn-save-family" type="button" class="primary">Создать</button>
       </div>
     </div>
-  </div>
 
-  <div id="members-modal" class="modal hidden">
-    <div class="modal-content modal-content-large">
-      <h3 id="members-modal-title">Участники группы</h3>
-      <div class="members-search">
-        <input type="text" id="members-search-input" placeholder="Поиск участников..." />
-      </div>
-      <div class="members-list" id="members-list"></div>
-      <div class="modal-actions">
-        <button id="btn-close-members" type="button" class="primary">Закрыть</button>
+    <!-- Модальные окна -->
+    <template id="task-item-template">
+      <li class="task-card">
+        <div class="task-card__color-bar"></div>
+        <div class="task-card__content">
+          <div class="task-card__title"></div>
+          <div class="task-card__meta"></div>
+          <div class="task-card__tags"></div>
+        </div>
+        <button class="task-card__delete" type="button" aria-label="Удалить задачу">✕</button>
+      </li>
+    </template>
+
+    <div id="family-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Создать группу</h3>
+        <input type="text" id="new-family-name" placeholder="Название (например: Ивановы)" />
+        <div class="modal-actions">
+          <button id="btn-cancel-family" type="button">Отмена</button>
+          <button id="btn-save-family" type="button" class="primary">Создать</button>
+        </div>
       </div>
     </div>
+
+    <div id="members-modal" class="modal hidden">
+      <div class="modal-content modal-content-large">
+        <h3 id="members-modal-title">Участники группы</h3>
+        <div class="members-search">
+          <input type="text" id="members-search-input" placeholder="Поиск участников..." />
+        </div>
+        <div class="members-list" id="members-list"></div>
+        <div class="modal-actions">
+          <button id="btn-close-members" type="button" class="primary">Закрыть</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Кнопка добавления задачи (FAB) -->
+    <button class="fab" id="fab-add-task" aria-label="Добавить задачу">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+    </button>
   </div>
 
   <script src="app.js" type="module"></script>

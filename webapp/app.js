@@ -18,20 +18,21 @@ const state = {
 };
 
 const ui = {
-  monthLabel: document.getElementById("month-label"),
+  monthYearLabel: document.getElementById("month-year-label"),
   calendarGrid: document.getElementById("calendar-grid"),
   calendarView: document.getElementById("calendar-view"),
   kanbanView: document.getElementById("kanban-view"),
   kanbanBoard: document.getElementById("kanban-board"),
   kanbanDaysSelect: document.getElementById("kanban-days-select"),
-  selectedDate: document.getElementById("selected-date"),
   taskList: document.getElementById("task-list"),
   scopeChips: document.getElementById("scope-chips"),
-  btnPrev: document.getElementById("btn-prev-month"),
-  btnNext: document.getElementById("btn-next-month"),
+  btnBack: document.getElementById("btn-back"),
+  btnForward: document.getElementById("btn-forward"),
   btnViewCalendar: document.getElementById("btn-view-calendar"),
   btnViewKanban: document.getElementById("btn-view-kanban"),
   taskForm: document.getElementById("task-form"),
+  taskFormSheet: document.getElementById("task-form-sheet"),
+  taskFormOverlay: document.getElementById("task-form-overlay"),
   taskTemplate: document.getElementById("task-item-template"),
   familyModal: document.getElementById("family-modal"),
   inputFamilyName: document.getElementById("new-family-name"),
@@ -42,6 +43,9 @@ const ui = {
   membersList: document.getElementById("members-list"),
   membersSearchInput: document.getElementById("members-search-input"),
   btnCloseMembers: document.getElementById("btn-close-members"),
+  fabAddTask: document.getElementById("fab-add-task"),
+  familySelect: document.getElementById("family-select"),
+  taskDateInput: document.getElementById("task-date-input"),
 };
 
 function formatISO(date) {
@@ -64,7 +68,9 @@ function monthBounds(date) {
 }
 
 function russianMonth(date) {
-  return date.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  const month = date.toLocaleDateString("ru-RU", { month: "long" });
+  const year = date.getFullYear();
+  return `${month} ${year} г.`;
 }
 
 function formatDateHuman(date) {
@@ -124,15 +130,16 @@ async function loadFamilies() {
 }
 
 function populateFamilySelect() {
-  const select = ui.taskForm.elements["family_id"];
-  select.innerHTML = '<option value="">Не выбрана</option>';
-  state.families.forEach((family) => {
-    const option = document.createElement("option");
-    option.value = family.id;
-    option.textContent = family.name;
-    select.appendChild(option);
-  });
-  select.disabled = !state.families.length;
+  if (ui.familySelect) {
+    ui.familySelect.innerHTML = '<option value="">Не выбрана</option>';
+    state.families.forEach((family) => {
+      const option = document.createElement("option");
+      option.value = family.id;
+      option.textContent = family.name;
+      ui.familySelect.appendChild(option);
+    });
+    ui.familySelect.disabled = !state.families.length;
+  }
 }
 
 function renderScopeChips() {
@@ -232,64 +239,62 @@ function buildCalendar() {
 function renderCalendar() {
   const days = buildCalendar();
   ui.calendarGrid.innerHTML = "";
-  ui.monthLabel.textContent = russianMonth(state.currentMonth);
+  if (ui.monthYearLabel) {
+    ui.monthYearLabel.textContent = russianMonth(state.currentMonth);
+  }
 
   days.forEach((day) => {
     const cell = document.createElement("div");
-    cell.className = "day";
+    cell.className = "calendar-day";
     if (day.getMonth() !== state.currentMonth.getMonth()) {
       cell.classList.add("outside");
     }
     if (formatISO(day) === formatISO(state.selectedDate)) {
       cell.classList.add("selected");
     }
-    const header = document.createElement("div");
-    header.className = "day__header";
-    header.textContent = day.getDate();
-    cell.appendChild(header);
 
+    // Номер дня в правом верхнем углу
+    const dayNumber = document.createElement("div");
+    dayNumber.className = "calendar-day__number";
+    dayNumber.textContent = day.getDate();
+    cell.appendChild(dayNumber);
+
+    // Цветные точки для задач
     const key = formatISO(day);
     const tasksForDay = state.taskMap[key] || [];
     if (tasksForDay.length) {
-      const dot = document.createElement("span");
-      dot.className = "dot";
-      cell.appendChild(dot);
-
-      const taskList = document.createElement("div");
-      taskList.className = "day__tasks";
-      tasksForDay.slice(0, 2).forEach((task) => {
-        const chip = document.createElement("div");
-        chip.className = "day-task-chip";
-        const timeRange = formatTimeRange(task);
-        if (timeRange) {
-          const time = document.createElement("span");
-          time.className = "day-task-chip__time";
-          time.textContent = timeRange;
-          chip.appendChild(time);
-        }
-        const title = document.createElement("span");
-        title.className = "day-task-chip__title";
-        title.textContent = task.title;
-        // Добавляем tooltip для длинных заголовков
-        if (task.title.length > 30) {
-          chip.title = task.title;
-        }
-        chip.appendChild(title);
-        taskList.appendChild(chip);
+      const dotsContainer = document.createElement("div");
+      dotsContainer.className = "calendar-day__dots";
+      
+      // Группируем задачи по цветам и показываем до 3 точек
+      const colors = [...new Set(tasksForDay.slice(0, 3).map(t => t.color || "#4c6fff"))];
+      colors.forEach(color => {
+        const dot = document.createElement("span");
+        dot.className = "calendar-day__dot";
+        dot.style.background = color;
+        dotsContainer.appendChild(dot);
       });
-      if (tasksForDay.length > 2) {
-        const more = document.createElement("div");
-        more.className = "day-task-chip";
-        more.textContent = `+${tasksForDay.length - 2} ещё`;
-        taskList.appendChild(more);
+      
+      cell.appendChild(dotsContainer);
+      
+      // Tooltip с количеством задач
+      if (tasksForDay.length > 0) {
+        cell.title = `${tasksForDay.length} ${tasksForDay.length === 1 ? 'задача' : tasksForDay.length < 5 ? 'задачи' : 'задач'}`;
       }
-      cell.appendChild(taskList);
     }
+
     cell.addEventListener("click", () => {
       state.selectedDate = day;
       renderCalendar();
       renderTaskList();
       syncFormDate();
+      // Прокручиваем к списку задач выбранного дня
+      const selectedDayTasks = document.getElementById("selected-day-tasks");
+      if (selectedDayTasks) {
+        setTimeout(() => {
+          selectedDayTasks.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 100);
+      }
     });
     ui.calendarGrid.appendChild(cell);
   });
@@ -298,59 +303,72 @@ function renderCalendar() {
 function renderTaskList() {
   const key = formatISO(state.selectedDate);
   const tasks = state.taskMap[key] || [];
-  ui.selectedDate.textContent = formatDateHuman(state.selectedDate);
   ui.taskList.innerHTML = "";
+  
   if (!tasks.length) {
     const empty = document.createElement("li");
     empty.textContent = "Пока нет задач";
-    empty.className = "task-item";
+    empty.className = "task-card";
+    empty.style.padding = "20px";
+    empty.style.textAlign = "center";
+    empty.style.color = "var(--text-hint)";
     ui.taskList.appendChild(empty);
     return;
   }
 
   tasks.forEach((task) => {
     const node = ui.taskTemplate.content.cloneNode(true);
-    const taskItem = node.querySelector(".task-item");
+    const taskCard = node.querySelector(".task-card");
     
-    // Применяем цвет, если есть
+    // Применяем цвет к полоске
+    const colorBar = node.querySelector(".task-card__color-bar");
     if (task.color) {
-      taskItem.style.borderLeft = `4px solid ${task.color}`;
-    }
-    
-    node.querySelector(".task-item__title").textContent = task.title;
-    const descEl = node.querySelector(".task-item__description");
-    if (task.description) {
-      descEl.textContent = task.description;
+      colorBar.style.background = task.color;
     } else {
-      descEl.remove();
+      colorBar.style.background = "var(--primary)";
     }
     
-    // Добавляем теги
+    // Заголовок задачи
+    const titleEl = node.querySelector(".task-card__title");
+    titleEl.textContent = task.title;
+    if (task.title.length > 50) {
+      taskCard.title = task.title;
+    }
+    
+    // Мета-информация (время и группа)
+    const metaEl = node.querySelector(".task-card__meta");
     const meta = [];
     const time = formatTimeRange(task);
     if (time) meta.push(time);
     if (task.scope === "family" && task.family_id) {
       const family = state.families.find((f) => f.id === task.family_id);
-      if (family) meta.push(family.name);
+      if (family) {
+        const familyChip = document.createElement("span");
+        familyChip.className = "task-tag";
+        familyChip.textContent = family.name;
+        metaEl.appendChild(familyChip);
+      }
+    }
+    if (time) {
+      const timeSpan = document.createElement("span");
+      timeSpan.textContent = time;
+      metaEl.appendChild(timeSpan);
     }
     
-    const metaEl = node.querySelector(".task-item__meta");
-    metaEl.textContent = meta.join(" • ");
-    
-    // Добавляем теги после мета-информации
+    // Теги
+    const tagsContainer = node.querySelector(".task-card__tags");
     if (task.tags && task.tags.length > 0) {
-      const tagsContainer = document.createElement("div");
-      tagsContainer.className = "task-item__tags";
       task.tags.forEach(tag => {
         const tagEl = document.createElement("span");
         tagEl.className = "task-tag";
         tagEl.textContent = tag;
         tagsContainer.appendChild(tagEl);
       });
-      metaEl.parentNode.insertBefore(tagsContainer, metaEl.nextSibling);
+    } else {
+      tagsContainer.remove();
     }
     
-    const deleteBtn = node.querySelector(".task-item__delete");
+    const deleteBtn = node.querySelector(".task-card__delete");
     deleteBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       confirmDelete(task.id);
@@ -360,19 +378,20 @@ function renderTaskList() {
 }
 
 function syncFormDate() {
-  ui.taskForm.elements["date"].value = formatISO(state.selectedDate);
+  if (ui.taskDateInput) {
+    ui.taskDateInput.value = formatISO(state.selectedDate);
+  }
 }
 
 function syncFormScope() {
-  const scopeSelect = ui.taskForm.elements["scope"];
-  scopeSelect.value = state.scope.type;
-  const familySelect = ui.taskForm.elements["family_id"];
-  if (state.scope.type === "family" && state.scope.familyId) {
-    familySelect.value = state.scope.familyId;
-    familySelect.disabled = false;
-  } else {
-    familySelect.value = "";
-    familySelect.disabled = state.families.length === 0;
+  if (ui.familySelect) {
+    if (state.scope.type === "family" && state.scope.familyId) {
+      ui.familySelect.value = state.scope.familyId;
+      ui.familySelect.disabled = false;
+    } else {
+      ui.familySelect.value = "";
+      ui.familySelect.disabled = state.families.length === 0;
+    }
   }
 }
 
@@ -640,23 +659,28 @@ async function removeMember(userId, memberName) {
 }
 
 function setupListeners() {
-  ui.btnPrev.addEventListener("click", () => {
-    state.currentMonth = new Date(
-      state.currentMonth.getFullYear(),
-      state.currentMonth.getMonth() - 1,
-      1
-    );
-    fetchTasks();
-  });
+  // Навигация по месяцам
+  if (ui.btnBack) {
+    ui.btnBack.addEventListener("click", () => {
+      state.currentMonth = new Date(
+        state.currentMonth.getFullYear(),
+        state.currentMonth.getMonth() - 1,
+        1
+      );
+      fetchTasks();
+    });
+  }
 
-  ui.btnNext.addEventListener("click", () => {
-    state.currentMonth = new Date(
-      state.currentMonth.getFullYear(),
-      state.currentMonth.getMonth() + 1,
-      1
-    );
-    fetchTasks();
-  });
+  if (ui.btnForward) {
+    ui.btnForward.addEventListener("click", () => {
+      state.currentMonth = new Date(
+        state.currentMonth.getFullYear(),
+        state.currentMonth.getMonth() + 1,
+        1
+      );
+      fetchTasks();
+    });
+  }
 
   ui.btnCancelFamily.addEventListener("click", closeFamilyModal);
   
@@ -685,98 +709,153 @@ function setupListeners() {
     if (e.target === ui.familyModal) closeFamilyModal();
   });
 
-  ui.taskForm.elements["scope"].addEventListener("change", (event) => {
-    const value = event.target.value;
-    const familySelect = ui.taskForm.elements["family_id"];
-    if (value === "family") {
-      familySelect.disabled = false;
-      if (!familySelect.value && state.families[0]) {
-        familySelect.value = state.families[0].id;
+  // Обработка выбора группы
+  if (ui.familySelect) {
+    ui.familySelect.addEventListener("change", (event) => {
+      const familyId = event.target.value;
+      if (familyId) {
+        state.scope = { type: "family", familyId: Number(familyId) };
+      } else {
+        state.scope = { type: "personal", familyId: null };
       }
-    } else {
-      familySelect.value = "";
-      familySelect.disabled = state.families.length === 0;
-    }
-  });
+    });
+  }
 
-  ui.taskForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const formData = new FormData(ui.taskForm);
-    const payload = Object.fromEntries(formData.entries());
-    payload.scope = payload.scope || "personal";
-    payload.family_id = payload.family_id ? Number(payload.family_id) : null;
-    if (payload.scope === "family" && !payload.family_id) {
-      alert("Выбери групповой календарь");
-      return;
-    }
-    payload.start_time = payload.start_time || null;
-    payload.end_time = payload.end_time || null;
-    if (payload.start_time && payload.end_time && payload.end_time < payload.start_time) {
-      alert("Время окончания должно быть позже начала");
-      return;
-    }
-
-    // Обработка тегов
-    if (payload.tags && payload.tags.trim()) {
-      payload.tags = payload.tags.split(",").map(t => t.trim()).filter(t => t.length > 0);
-      if (payload.tags.length === 0) payload.tags = null;
-    } else {
-      payload.tags = null;
-    }
-
-    // Обработка цвета
-    payload.color = payload.color || null;
-    if (payload.color && !/^#[0-9A-Fa-f]{6}$/.test(payload.color)) {
-      payload.color = null; // Если невалидный, сбрасываем
-    }
-
-    // Обработка уведомлений
-    // Проверяем чекбоксы через элементы формы (FormData не включает неотмеченные чекбоксы)
-    const notifyDayCheckbox = ui.taskForm.elements["notify_day"];
-    const notifyHourCheckbox = ui.taskForm.elements["notify_hour"];
-    
-    // Уведомление за день работает всегда
-    payload.notify_before_days = (notifyDayCheckbox && notifyDayCheckbox.checked) ? 1 : null;
-    
-    // Уведомление за час работает только если указано время начала
-    payload.notify_before_hours = (notifyHourCheckbox && notifyHourCheckbox.checked && payload.start_time) ? 1 : null;
-
-    // Удаляем служебные поля из payload (если они там есть)
-    delete payload["notify_day"];
-    delete payload["notify_hour"];
-
-    try {
-      await apiFetch("/tasks", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      ui.taskForm.reset();
-      // Восстанавливаем цвет по умолчанию
-      if (ui.taskForm.elements["color"]) {
-        ui.taskForm.elements["color"].value = "#4c6fff";
+  // Обработка уведомлений - отключение "за час" если нет времени
+  const startTimeInput = ui.taskForm?.elements["start_time"];
+  const notifyHourChip = document.getElementById("notify-hour");
+  if (startTimeInput && notifyHourChip) {
+    const updateNotifyHourAvailability = () => {
+      const hasStartTime = startTimeInput.value && startTimeInput.value.trim() !== "";
+      const checkbox = notifyHourChip.previousElementSibling;
+      if (checkbox) {
+        checkbox.disabled = !hasStartTime;
+        if (!hasStartTime && checkbox.checked) {
+          checkbox.checked = false;
+        }
       }
-      syncFormDate();
-      syncFormScope();
-      fetchTasks();
-    } catch (error) {
-      alert(error.message);
-    }
-  });
+    };
+    startTimeInput.addEventListener("input", updateNotifyHourAvailability);
+    startTimeInput.addEventListener("change", updateNotifyHourAvailability);
+    updateNotifyHourAvailability();
+  }
 
-  ui.btnViewCalendar.addEventListener("click", () => {
-    if (state.viewMode !== "calendar") {
-      state.viewMode = "calendar";
-      renderCurrentView();
-    }
-  });
+  if (ui.taskForm) {
+    ui.taskForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(ui.taskForm);
+      const payload = Object.fromEntries(formData.entries());
+      
+      // Определяем scope на основе выбранной группы
+      if (payload.family_id) {
+        payload.scope = "family";
+        payload.family_id = Number(payload.family_id);
+      } else {
+        payload.scope = "personal";
+        payload.family_id = null;
+      }
+      
+      payload.start_time = payload.start_time || null;
+      payload.end_time = payload.end_time || null;
+      if (payload.start_time && payload.end_time && payload.end_time < payload.start_time) {
+        alert("Время окончания должно быть позже начала");
+        return;
+      }
 
-  ui.btnViewKanban.addEventListener("click", () => {
-    if (state.viewMode !== "kanban") {
-      state.viewMode = "kanban";
-      renderCurrentView();
-      renderKanban();
-    }
-  });
+      // Обработка тегов
+      if (payload.tags && payload.tags.trim()) {
+        payload.tags = payload.tags.split(",").map(t => t.trim()).filter(t => t.length > 0);
+        if (payload.tags.length === 0) payload.tags = null;
+      } else {
+        payload.tags = null;
+      }
+
+      // Обработка цвета (из радио-кнопок)
+      payload.color = payload.color || "#4c6fff";
+      if (!/^#[0-9A-Fa-f]{6}$/.test(payload.color)) {
+        payload.color = "#4c6fff"; // Дефолтный цвет
+      }
+
+      // Обработка уведомлений (чипы)
+      const notify15min = ui.taskForm.elements["notify_15min"]?.checked;
+      const notifyHour = ui.taskForm.elements["notify_hour"]?.checked;
+      const notifyDay = ui.taskForm.elements["notify_day"]?.checked;
+      
+      // Уведомление за 15 минут (если нужно в будущем)
+      // payload.notify_before_minutes = notify15min ? 15 : null;
+      
+      // Уведомление за день работает всегда
+      payload.notify_before_days = notifyDay ? 1 : null;
+      
+      // Уведомление за час работает только если указано время начала
+      payload.notify_before_hours = (notifyHour && payload.start_time) ? 1 : null;
+
+      // Удаляем служебные поля
+      delete payload["notify_15min"];
+      delete payload["notify_day"];
+      delete payload["notify_hour"];
+
+      try {
+        await apiFetch("/tasks", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        ui.taskForm.reset();
+        // Восстанавливаем значения по умолчанию
+        if (ui.taskForm.elements["color-blue"]) {
+          ui.taskForm.elements["color-blue"].checked = true;
+        }
+        syncFormDate();
+        syncFormScope();
+        closeTaskForm();
+        fetchTasks();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  }
+
+  // Переключение видов
+  if (ui.btnViewCalendar) {
+    ui.btnViewCalendar.addEventListener("click", () => {
+      if (state.viewMode !== "calendar") {
+        state.viewMode = "calendar";
+        renderCurrentView();
+      }
+    });
+  }
+
+  if (ui.btnViewKanban) {
+    ui.btnViewKanban.addEventListener("click", () => {
+      if (state.viewMode !== "kanban") {
+        state.viewMode = "kanban";
+        renderCurrentView();
+        renderKanban();
+      }
+    });
+  }
+  
+  // FAB кнопка для открытия формы
+  if (ui.fabAddTask) {
+    ui.fabAddTask.addEventListener("click", () => {
+      openTaskForm();
+    });
+  }
+  
+  // Закрытие bottom sheet при клике на overlay
+  if (ui.taskFormOverlay) {
+    ui.taskFormOverlay.addEventListener("click", () => {
+      closeTaskForm();
+    });
+  }
+  
+  // Закрытие bottom sheet при клике на handle
+  const handle = document.querySelector(".bottom-sheet__handle");
+  if (handle) {
+    handle.addEventListener("click", () => {
+      closeTaskForm();
+    });
+  }
 
   // Настройка количества дней в канбане
   if (ui.kanbanDaysSelect) {
@@ -787,55 +866,51 @@ function setupListeners() {
     });
   }
 
-  // Управление доступностью чекбокса "Уведомить за час"
-  const startTimeInput = ui.taskForm.elements["start_time"];
-  const notifyDayCheckbox = ui.taskForm.elements["notify_day"];
-  const notifyHourCheckbox = ui.taskForm.elements["notify_hour"];
-  
-  // Убеждаемся, что чекбоксы не disabled изначально (кроме notify_hour)
-  if (notifyDayCheckbox) {
-    notifyDayCheckbox.disabled = false;
-    // Явно устанавливаем стили для кликабельности
-    notifyDayCheckbox.style.pointerEvents = "auto";
-    notifyDayCheckbox.style.cursor = "pointer";
-  }
-  
-  if (startTimeInput && notifyHourCheckbox) {
-    const updateNotifyHourAvailability = () => {
-      const hasStartTime = startTimeInput.value && startTimeInput.value.trim() !== "";
-      notifyHourCheckbox.disabled = !hasStartTime;
-      notifyHourCheckbox.style.pointerEvents = hasStartTime ? "auto" : "none";
-      notifyHourCheckbox.style.cursor = hasStartTime ? "pointer" : "not-allowed";
-      if (!hasStartTime && notifyHourCheckbox.checked) {
-        notifyHourCheckbox.checked = false;
-      }
-    };
-    
-    startTimeInput.addEventListener("input", updateNotifyHourAvailability);
-    startTimeInput.addEventListener("change", updateNotifyHourAvailability);
-    // Проверяем при загрузке
-    updateNotifyHourAvailability();
-  } else if (notifyHourCheckbox) {
-    // Если нет поля времени, отключаем чекбокс за час
-    notifyHourCheckbox.disabled = true;
-    notifyHourCheckbox.style.pointerEvents = "none";
-  }
-  
-  // Label автоматически переключает чекбокс, дополнительная обработка не нужна
 }
 
 
 
 function renderCurrentView() {
   const isCalendar = state.viewMode === "calendar";
-  ui.calendarView.classList.toggle("hidden", !isCalendar);
-  ui.kanbanView.classList.toggle("hidden", isCalendar);
-  ui.btnViewCalendar.classList.toggle("active", isCalendar);
-  ui.btnViewKanban.classList.toggle("active", !isCalendar);
+  if (ui.calendarView) ui.calendarView.classList.toggle("hidden", !isCalendar);
+  if (ui.kanbanView) ui.kanbanView.classList.toggle("hidden", isCalendar);
+  if (ui.btnViewCalendar) ui.btnViewCalendar.classList.toggle("active", isCalendar);
+  if (ui.btnViewKanban) ui.btnViewKanban.classList.toggle("active", !isCalendar);
   if (isCalendar) {
     renderCalendar();
   } else {
     renderKanban();
+  }
+}
+
+function openTaskForm() {
+  if (ui.taskFormSheet) {
+    ui.taskFormSheet.classList.add("open");
+    if (ui.taskFormOverlay) {
+      ui.taskFormOverlay.classList.add("open");
+    }
+    syncFormDate();
+    syncFormScope();
+    if (ui.taskForm && ui.taskForm.elements["title"]) {
+      setTimeout(() => ui.taskForm.elements["title"].focus(), 300);
+    }
+  }
+}
+
+function closeTaskForm() {
+  if (ui.taskFormSheet) {
+    ui.taskFormSheet.classList.remove("open");
+    if (ui.taskFormOverlay) {
+      ui.taskFormOverlay.classList.remove("open");
+    }
+    if (ui.taskForm) {
+      ui.taskForm.reset();
+      // Восстанавливаем значения по умолчанию
+      const colorBlue = ui.taskForm.elements["color-blue"];
+      if (colorBlue) colorBlue.checked = true;
+      syncFormDate();
+      syncFormScope();
+    }
   }
 }
 
@@ -868,12 +943,13 @@ function buildKanbanDays() {
 }
 
 function renderKanban() {
+  if (!ui.kanbanBoard) return;
   ui.kanbanBoard.innerHTML = "";
   const days = buildKanbanDays();
   days.forEach((day) => {
     const key = formatISO(day);
     const column = document.createElement("div");
-    column.className = "kanban__column";
+    column.className = "week-column";
     column.dataset.date = key;
 
     column.addEventListener("dragover", (event) => {
@@ -887,82 +963,82 @@ function renderKanban() {
       const taskId = event.dataTransfer.getData("taskId");
       if (taskId) moveTaskToDate(Number(taskId), key);
     });
+    
+    // Клик по колонке открывает форму для создания задачи
     column.addEventListener("click", (event) => {
-      if (event.target.closest(".kanban__add")) return;
+      if (event.target.closest(".week-column__add")) return;
+      if (event.target.closest(".week-task-card")) return;
       setSelectedDateFromISO(key);
-      ui.taskForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      openTaskForm();
     });
-
+    
+    // Заголовок колонки
     const header = document.createElement("div");
-    header.className = "kanban__column-header";
-    header.innerHTML = `<span>${day.getDate()} ${day.toLocaleDateString("ru-RU", { month: "short" })}</span>`;
-    const count = document.createElement("span");
-    count.className = "kanban__count";
+    header.className = "week-column__header";
+    
+    const dateSpan = document.createElement("div");
+    dateSpan.className = "week-column__date";
+    const dayName = day.toLocaleDateString("ru-RU", { weekday: "short" });
+    const dayNum = day.getDate();
+    const month = day.toLocaleDateString("ru-RU", { month: "short" });
+    dateSpan.textContent = `${dayName}, ${dayNum} ${month}`;
+    header.appendChild(dateSpan);
+    
     const tasksForDay = state.taskMap[key] || [];
     tasksForDay.sort(sortTasks);
-    count.textContent = `${tasksForDay.length}`;
-    header.appendChild(count);
+    
+    if (tasksForDay.length > 0) {
+      const count = document.createElement("div");
+      count.className = "week-column__count";
+      count.textContent = `${tasksForDay.length}`;
+      header.appendChild(count);
+    }
+    
     const addBtn = document.createElement("button");
     addBtn.type = "button";
-    addBtn.className = "kanban__add";
-    addBtn.textContent = "+";
+    addBtn.className = "week-column__add";
+    addBtn.innerHTML = "+";
     addBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       setSelectedDateFromISO(key);
-      ui.taskForm.scrollIntoView({ behavior: "smooth", block: "start" });
-      setTimeout(() => ui.taskForm.elements["title"].focus(), 500);
+      openTaskForm();
     });
     header.appendChild(addBtn);
+    
     column.appendChild(header);
 
+    // Список задач
     const list = document.createElement("div");
-    list.className = "kanban__list";
+    list.className = "week-column__list";
 
     tasksForDay.forEach((task) => {
       const card = document.createElement("div");
-      card.className = "kanban-card";
+      card.className = "week-task-card";
       card.draggable = true;
       card.dataset.taskId = task.id;
       card.addEventListener("dragstart", (event) => {
         event.dataTransfer.setData("taskId", String(task.id));
       });
 
-      // Применяем цвет, если есть
-      if (task.color) {
-        card.style.borderLeft = `4px solid ${task.color}`;
-      }
+      // Цветная полоса слева
+      const colorBar = document.createElement("div");
+      colorBar.className = "week-task-card__color-bar";
+      colorBar.style.background = task.color || "var(--primary)";
+      card.appendChild(colorBar);
+
+      const content = document.createElement("div");
+      content.className = "week-task-card__content";
 
       const title = document.createElement("div");
-      title.className = "kanban-card__title";
+      title.className = "week-task-card__title";
       title.textContent = task.title;
-      // Добавляем tooltip для длинных заголовков
       if (task.title.length > 50) {
         card.title = task.title;
       }
-      card.appendChild(title);
-
-      if (task.description) {
-        const desc = document.createElement("div");
-        desc.className = "kanban-card__description";
-        desc.textContent = task.description;
-        card.appendChild(desc);
-      }
-
-      // Добавляем теги
-      if (task.tags && task.tags.length > 0) {
-        const tagsContainer = document.createElement("div");
-        tagsContainer.className = "kanban-card__tags";
-        task.tags.forEach(tag => {
-          const tagEl = document.createElement("span");
-          tagEl.className = "task-tag";
-          tagEl.textContent = tag;
-          tagsContainer.appendChild(tagEl);
-        });
-        card.appendChild(tagsContainer);
-      }
+      content.appendChild(title);
 
       const meta = document.createElement("div");
-      meta.className = "kanban-card__meta";
+      meta.className = "week-task-card__meta";
       const metaParts = [];
       const time = formatTimeRange(task);
       if (time) metaParts.push(time);
@@ -970,12 +1046,27 @@ function renderKanban() {
         const family = state.families.find((f) => f.id === task.family_id);
         if (family) metaParts.push(family.name);
       }
-      meta.textContent = metaParts.join(" • ") || "Без времени";
-      card.appendChild(meta);
+      meta.textContent = metaParts.join(" • ") || "";
+      content.appendChild(meta);
+
+      // Теги
+      if (task.tags && task.tags.length > 0) {
+        const tagsContainer = document.createElement("div");
+        tagsContainer.className = "week-task-card__tags";
+        task.tags.forEach(tag => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "task-tag";
+          tagEl.textContent = tag;
+          tagsContainer.appendChild(tagEl);
+        });
+        content.appendChild(tagsContainer);
+      }
+
+      card.appendChild(content);
 
       const deleteBtn = document.createElement("button");
-      deleteBtn.className = "kanban__delete";
-      deleteBtn.textContent = "X";
+      deleteBtn.className = "week-task-card__delete";
+      deleteBtn.textContent = "✕";
       deleteBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         confirmDelete(task.id);
@@ -1033,8 +1124,12 @@ async function confirmDelete(taskId) {
 function setSelectedDateFromISO(dateISO) {
   state.selectedDate = parseISO(dateISO);
   syncFormDate();
-  renderTaskList();
-  renderCalendar();
+  if (state.viewMode === "calendar") {
+    renderCalendar();
+    renderTaskList();
+  } else {
+    renderKanban();
+  }
 }
 
 function sortTasks(a, b) {
