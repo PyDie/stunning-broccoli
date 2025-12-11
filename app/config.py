@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     
     # CORS origins для продакшена (через запятую)
     cors_origins: str = Field(default="", description="Allowed CORS origins (comma-separated)")
+    
+    # ID администраторов бота (через запятую) - могут отправлять сообщения от лица бота
+    admin_user_ids: str = Field(default="", description="Admin user IDs (comma-separated)")
 
     class Config:
         env_file = ".env"

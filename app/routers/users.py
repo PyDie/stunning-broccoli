@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession # 👈 1. Меняем импорт сессии SQLAlchemy
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from app import schemas, crud, models
 from app.dependencies import get_current_user
-from app.database import get_async_db # 👈 2. Меняем импорт генератора зависимостей
+from app.database import get_async_db
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -64,4 +65,38 @@ async def test_notification(
         return {"status": "success", "message": "Тестовое уведомление отправлено"}
     except Exception as e:
         error_msg = str(e) if settings.environment == "development" else "Ошибка отправки уведомления"
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+class SendMessageRequest(BaseModel):
+    user_id: int
+    message: str
+
+
+@router.post("/send-message")
+async def send_message(
+    payload: SendMessageRequest,
+    current_user: schemas.UserRead = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Отправка сообщения от лица бота пользователю.
+    Доступно только администраторам.
+    """
+    from app.config import get_settings
+    from app.notifications import get_bot
+    
+    settings = get_settings()
+    
+    # Проверка прав администратора
+    admin_ids = [int(uid.strip()) for uid in settings.admin_user_ids.split(",") if uid.strip()] if settings.admin_user_ids else []
+    if current_user.id not in admin_ids:
+        raise HTTPException(status_code=403, detail="Only administrators can send messages")
+    
+    try:
+        bot = get_bot()
+        await bot.send_message(chat_id=payload.user_id, text=payload.message)
+        return {"status": "success", "message": f"Message sent to user {payload.user_id}"}
+    except Exception as e:
+        error_msg = str(e) if settings.environment == "development" else "Error sending message"
         raise HTTPException(status_code=500, detail=error_msg)
