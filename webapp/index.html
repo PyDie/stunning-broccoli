@@ -21,6 +21,8 @@
 </head>
 <body>
   <div class="app">
+    <!-- Индикатор загрузки (верхняя полоска) -->
+    <div class="loading-bar" id="loading-bar" aria-hidden="true"></div>
     <!-- Верхняя панель навигации -->
     <header class="top-bar">
       <button class="top-bar__back" id="btn-back" aria-label="Назад">
@@ -209,6 +211,9 @@
         <path d="M12 5v14M5 12h14"/>
       </svg>
     </button>
+
+    <!-- Toast stack -->
+    <div class="toast-stack" id="toast-stack" aria-live="polite" aria-relevant="additions"></div>
   </div>
 
   <script src="app.js?v=2025-12-12-uiux-debug-1" type="module"></script>

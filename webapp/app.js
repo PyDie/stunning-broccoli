@@ -88,6 +88,96 @@ try {
   }
 } catch {}
 
+function setScheme(scheme) {
+  try {
+    if (scheme === "dark" || scheme === "light") {
+      document.documentElement.dataset.scheme = scheme;
+    } else {
+      delete document.documentElement.dataset.scheme;
+    }
+  } catch {}
+}
+
+function applyTelegramTheme() {
+  try {
+    const scheme = tg?.colorScheme; // "light" | "dark"
+    if (scheme) setScheme(scheme);
+
+    const p = tg?.themeParams || {};
+    const setVar = (name, value) => {
+      if (!value) return;
+      document.documentElement.style.setProperty(name, value);
+    };
+
+    // Telegram theme params (если есть)
+    setVar("--bg-white", p.bg_color);
+    setVar("--bg-light", p.secondary_bg_color);
+    setVar("--text-primary", p.text_color);
+    setVar("--text-hint", p.hint_color);
+    setVar("--primary", p.button_color);
+  } catch {}
+}
+
+function setLoading(isLoading) {
+  try {
+    document.body.classList.toggle("is-loading", !!isLoading);
+  } catch {}
+}
+
+function toastIconSvg(type) {
+  if (type === "error") {
+    return `<svg class="toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 4.8h3.4l6.2 10.7a2 2 0 0 1-1.7 3H5.8a2 2 0 0 1-1.7-3z"/></svg>`;
+  }
+  if (type === "success") {
+    return `<svg class="toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>`;
+  }
+  return `<svg class="toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16v-4"/><path d="M12 8h.01"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"/></svg>`;
+}
+
+function showToast(message, { title = "", type = "info", duration = 2600 } = {}) {
+  try {
+    const stack = document.getElementById("toast-stack");
+    if (!stack) return;
+
+    const el = document.createElement("div");
+    el.className = `toast toast--${type}`;
+    el.innerHTML = `
+      ${toastIconSvg(type)}
+      <div class="toast__content">
+        ${title ? `<div class="toast__title">${title}</div>` : ""}
+        <div class="toast__text">${String(message || "")}</div>
+      </div>
+      <button class="toast__close" type="button" aria-label="Закрыть">✕</button>
+    `;
+    const close = () => {
+      if (!el.isConnected) return;
+      el.remove();
+    };
+    el.querySelector(".toast__close")?.addEventListener("click", close);
+    stack.appendChild(el);
+    while (stack.children.length > 3) stack.firstElementChild?.remove();
+    if (duration > 0) setTimeout(close, duration);
+  } catch {}
+}
+
+async function uiConfirm(message) {
+  try {
+    if (tg?.showConfirm) {
+      return await new Promise((resolve) => tg.showConfirm(String(message || ""), (ok) => resolve(!!ok)));
+    }
+  } catch {}
+  return confirm(String(message || ""));
+}
+
+function uiAlert(message, { title = "Сообщение", type = "info" } = {}) {
+  showToast(message, { title, type, duration: type === "error" ? 4200 : 2600 });
+  try {
+    if (tg?.showPopup) {
+      tg.showPopup({ title: String(title || ""), message: String(message || ""), buttons: [{ type: "ok" }] });
+    }
+  } catch {}
+}
+
 // #region agent log
 agentLog({
   location: "webapp/app.js:module",
@@ -254,10 +344,15 @@ async function apiFetch(path, options = {}) {
 }
 
 async function loadFamilies() {
-  const families = await apiFetch("/families");
-  state.families = families;
-  populateFamilySelect();
-  renderScopeChips();
+  setLoading(true);
+  try {
+    const families = await apiFetch("/families");
+    state.families = families;
+    populateFamilySelect();
+    renderScopeChips();
+  } finally {
+    setLoading(false);
+  }
 }
 
 function populateFamilySelect() {
@@ -438,11 +533,15 @@ function renderTaskList() {
   
   if (!tasks.length) {
     const empty = document.createElement("li");
-    empty.textContent = "Пока нет задач";
-    empty.className = "task-card";
-    empty.style.padding = "20px";
-    empty.style.textAlign = "center";
-    empty.style.color = "var(--text-hint)";
+    empty.className = "task-card task-card--empty";
+    empty.innerHTML = `
+      <div>
+        <div class="task-empty-title">Пока нет задач</div>
+        <div class="task-empty-subtitle">Добавь первую — она появится в календаре и в неделе</div>
+        <button type="button" class="task-empty-action">+ Добавить задачу</button>
+      </div>
+    `;
+    empty.querySelector(".task-empty-action")?.addEventListener("click", () => openTaskForm());
     ui.taskList.appendChild(empty);
     return;
   }
@@ -558,6 +657,7 @@ function syncFormScope() {
 }
 
 async function fetchTasks() {
+  setLoading(true);
   const { start, end } = monthBounds(state.currentMonth);
   const params = new URLSearchParams({
     start: formatISO(start),
@@ -567,8 +667,13 @@ async function fetchTasks() {
   if (state.scope.type === "family" && state.scope.familyId) {
     params.append("family_id", state.scope.familyId);
   }
-  const tasks = await apiFetch(`/tasks?${params.toString()}`);
-  state.tasks = tasks;
+  let tasks = [];
+  try {
+    tasks = await apiFetch(`/tasks?${params.toString()}`);
+    state.tasks = tasks;
+  } finally {
+    setLoading(false);
+  }
   state.taskMap = tasks.reduce((acc, task) => {
     const key = task.date;
     acc[key] = acc[key] || [];
@@ -594,6 +699,7 @@ async function createFamily() {
   if (!name) return;
 
   try {
+    setLoading(true);
     // Отправляем запрос на сервер
     // Предполагается, что бэкенд ожидает JSON { "name": "..." }
     await apiFetch("/families", {
@@ -605,7 +711,9 @@ async function createFamily() {
     await loadFamilies();
     closeFamilyModal();
   } catch (error) {
-    alert("Ошибка создания семьи: " + error.message);
+    uiAlert("Ошибка создания группы: " + error.message, { title: "Ошибка", type: "error" });
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -638,27 +746,31 @@ async function checkInvite() {
     const inviteCode = startParam.split("_")[1];
     
     if (inviteCode) {
-      const confirmJoin = confirm(`Вступить по приглашению (код ${inviteCode})?`);
+      const confirmJoin = await uiConfirm(`Вступить по приглашению (код ${inviteCode})?`);
       if (!confirmJoin) return;
 
       try {
+        setLoading(true);
         await apiFetch(`/families/join`, { method: "POST", body: JSON.stringify({ invite_code: inviteCode }) });
-        alert("Вы успешно вступили в группу!");
+        showToast("Вы успешно вступили в группу!", { title: "Готово", type: "success" });
         // Перезагружаем список групп, чтобы новая группа появилась в списке
         await loadFamilies();
       } catch (error) {
         console.error(error);
-        alert("Не удалось вступить в группу: " + error.message);
+        uiAlert("Не удалось вступить в группу: " + error.message, { title: "Ошибка", type: "error" });
+      } finally {
+        setLoading(false);
       }
     }
   }
 }
 
 async function leaveFamily(familyId, familyName) {
-  if (!confirm(`Вы действительно хотите покинуть группу "${familyName}"?`)) return;
+  if (!(await uiConfirm(`Вы действительно хотите покинуть группу "${familyName}"?`))) return;
   try {
+    setLoading(true);
     await apiFetch(`/families/${familyId}/leave`, { method: "DELETE" });
-    alert(`Вы покинули группу "${familyName}"`);
+    showToast(`Вы покинули группу "${familyName}"`, { title: "Готово", type: "success" });
     
     // Если мы были в этой группе, переключаемся на личное
     if (state.scope.type === "family" && Number(state.scope.familyId) === Number(familyId)) {
@@ -669,7 +781,9 @@ async function leaveFamily(familyId, familyName) {
     await loadFamilies();
     await fetchTasks(); // Перезагружаем задачи, т.к. групповые больше недоступны
   } catch (error) {
-    alert("Не удалось покинуть группу: " + error.message);
+    uiAlert("Не удалось покинуть группу: " + error.message, { title: "Ошибка", type: "error" });
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -692,11 +806,14 @@ function closeMembersModal() {
 
 async function loadFamilyMembers(familyId) {
   try {
+    setLoading(true);
     const members = await apiFetch(`/families/${familyId}/members`);
     currentFamilyMembers = members;
     renderMembersList(members);
   } catch (error) {
-    alert("Не удалось загрузить участников: " + error.message);
+    uiAlert("Не удалось загрузить участников: " + error.message, { title: "Ошибка", type: "error" });
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -799,24 +916,30 @@ async function toggleBlockMember(userId, isBlocked) {
     ? "Разблокировать участника?"
     : "Заблокировать участника? Он не сможет видеть задачи группы.";
   
-  if (!confirm(confirmText)) return;
+  if (!(await uiConfirm(confirmText))) return;
   
   try {
+    setLoading(true);
     await apiFetch(`/families/${currentFamilyId}/members/${userId}/${action}`, { method: "POST" });
     await loadFamilyMembers(currentFamilyId);
   } catch (error) {
-    alert("Ошибка: " + error.message);
+    uiAlert("Ошибка: " + error.message, { title: "Ошибка", type: "error" });
+  } finally {
+    setLoading(false);
   }
 }
 
 async function removeMember(userId, memberName) {
-  if (!confirm(`Вы действительно хотите удалить "${memberName}" из группы?`)) return;
+  if (!(await uiConfirm(`Вы действительно хотите удалить "${memberName}" из группы?`))) return;
   
   try {
+    setLoading(true);
     await apiFetch(`/families/${currentFamilyId}/members/${userId}`, { method: "DELETE" });
     await loadFamilyMembers(currentFamilyId);
   } catch (error) {
-    alert("Ошибка: " + error.message);
+    uiAlert("Ошибка: " + error.message, { title: "Ошибка", type: "error" });
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -885,16 +1008,13 @@ function setupListeners() {
 
   // Обработка уведомлений - отключение "за час" если нет времени
   const startTimeInput = ui.taskForm?.elements["start_time"];
-  const notifyHourChip = document.getElementById("notify-hour");
-  if (startTimeInput && notifyHourChip) {
+  const notifyHourInput = document.getElementById("notify-hour");
+  if (startTimeInput && notifyHourInput) {
     const updateNotifyHourAvailability = () => {
       const hasStartTime = startTimeInput.value && startTimeInput.value.trim() !== "";
-      const checkbox = notifyHourChip.previousElementSibling;
-      if (checkbox) {
-        checkbox.disabled = !hasStartTime;
-        if (!hasStartTime && checkbox.checked) {
-          checkbox.checked = false;
-        }
+      notifyHourInput.disabled = !hasStartTime;
+      if (!hasStartTime && notifyHourInput.checked) {
+        notifyHourInput.checked = false;
       }
     };
     startTimeInput.addEventListener("input", updateNotifyHourAvailability);
@@ -920,7 +1040,7 @@ function setupListeners() {
       payload.start_time = payload.start_time || null;
       payload.end_time = payload.end_time || null;
       if (payload.start_time && payload.end_time && payload.end_time < payload.start_time) {
-        alert("Время окончания должно быть позже начала");
+        uiAlert("Время окончания должно быть позже начала", { title: "Проверь время", type: "warning" });
         return;
       }
 
@@ -958,6 +1078,7 @@ function setupListeners() {
       delete payload["notify_hour"];
 
       try {
+        setLoading(true);
         await apiFetch("/tasks", {
           method: "POST",
           body: JSON.stringify(payload),
@@ -970,9 +1091,12 @@ function setupListeners() {
         syncFormDate();
         syncFormScope();
         closeTaskForm();
-        fetchTasks();
+        await fetchTasks();
+        showToast("Задача добавлена", { title: "Готово", type: "success" });
       } catch (error) {
-        alert(error.message);
+        uiAlert(error.message, { title: "Ошибка", type: "error" });
+      } finally {
+        setLoading(false);
       }
     });
   }
@@ -1256,30 +1380,37 @@ async function moveTaskToDate(taskId, newDate) {
   renderCurrentView();
   if (formatISO(state.selectedDate) === prevDate) renderTaskList();
   try {
+    setLoading(true);
     await apiFetch(`/tasks/${taskId}`, {
       method: "PATCH",
       body: JSON.stringify({ date: newDate }),
     });
+    showToast("Задача перенесена", { title: "Готово", type: "success", duration: 1800 });
   } catch (error) {
     console.error("Error updating task:", error);
-    alert("Не удалось обновить задачу: " + error.message);
+    uiAlert("Не удалось обновить задачу: " + error.message, { title: "Ошибка", type: "error" });
     // откат
     task.date = prevDate;
     state.taskMap[newDate] = (state.taskMap[newDate] || []).filter((t) => t.id !== taskId);
     state.taskMap[prevDate] = [...(state.taskMap[prevDate] || []), task];
     state.taskMap[prevDate].sort(sortTasks);
     renderCurrentView();
+  } finally {
+    setLoading(false);
   }
 }
 
 async function confirmDelete(taskId) {
-  const agree = confirm("Удалить задачу?");
+  const agree = await uiConfirm("Удалить задачу?");
   if (!agree) return;
   try {
+    setLoading(true);
     await apiFetch(`/tasks/${taskId}`, { method: "DELETE" });
     await fetchTasks();
   } catch (error) {
-    alert("Не удалось удалить: " + error.message);
+    uiAlert("Не удалось удалить: " + error.message, { title: "Ошибка", type: "error" });
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -1323,6 +1454,14 @@ async function init() {
   // #endregion
 
   try {
+    applyTelegramTheme();
+    try {
+      tg?.onEvent?.("themeChanged", applyTelegramTheme);
+    } catch {}
+    try {
+      tg?.expand?.();
+    } catch {}
+
     await authenticate();
     
     // Сначала проверяем, не пришли ли мы по приглашению
@@ -1351,7 +1490,7 @@ async function init() {
     renderCurrentView();
   } catch (error) {
     console.error(error);
-    alert(error.message);
+    uiAlert(error.message, { title: "Ошибка", type: "error" });
   }
 }
 
