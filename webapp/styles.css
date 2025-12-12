@@ -1242,3 +1242,72 @@ html[data-scheme="dark"] {
   background: color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: 999px;
 }
+
+/* ============================================
+   Fallbacks for browsers without color-mix()
+   (iOS/Telegram WebView may lack support)
+   ============================================ */
+
+@supports not (background: color-mix(in srgb, #000 10%, #fff)) {
+  body {
+    background: var(--bg-white);
+  }
+  .app { background: var(--bg-white); }
+
+  .top-bar { background: rgba(255, 255, 255, 0.92); }
+  html[data-scheme="dark"] .top-bar { background: rgba(14, 17, 22, 0.92); }
+
+  .tab-switcher { background: var(--bg-light); }
+  .tab-switcher__tab.active {
+    background: rgba(76, 111, 255, 0.12);
+    border: 1px solid rgba(76, 111, 255, 0.22);
+    box-shadow: 0 8px 18px rgba(76, 111, 255, 0.16);
+  }
+
+  .scope-chip { background: var(--bg-white); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04); }
+  .scope-chip.active { box-shadow: 0 10px 22px rgba(76, 111, 255, 0.26); }
+  .scope-chip .share-btn,
+  .scope-chip .leave-btn,
+  .scope-chip .members-btn { background: rgba(0, 0, 0, 0.08); }
+  .scope-chip.active .share-btn,
+  .scope-chip.active .leave-btn,
+  .scope-chip.active .members-btn { background: rgba(255, 255, 255, 0.16); }
+
+  .calendar-day { background: var(--bg-white); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04); }
+  .calendar-day.today { border-color: rgba(76, 111, 255, 0.28); }
+  .calendar-day.today::after { box-shadow: 0 0 0 4px rgba(76, 111, 255, 0.18); }
+  .calendar-day.selected { background: rgba(76, 111, 255, 0.12); box-shadow: 0 10px 26px rgba(76, 111, 255, 0.18); }
+
+  .selected-day-tasks { background: var(--bg-white); }
+  .selected-day-header__add { background: rgba(76, 111, 255, 0.10); border-color: rgba(76, 111, 255, 0.22); }
+
+  .task-card { background: var(--bg-white); }
+  .task-tag { background: var(--bg-light); }
+  .task-card__delete { background: var(--bg-white); }
+  .task-card--empty .task-empty-action { background: rgba(76, 111, 255, 0.10); border-color: rgba(76, 111, 255, 0.22); }
+
+  .week-column { background: var(--bg-white); }
+  .week-column__header { background: rgba(255, 255, 255, 0.92); }
+  html[data-scheme="dark"] .week-column__header { background: rgba(14, 17, 22, 0.92); }
+  .week-task-card { background: var(--bg-white); }
+  .week-task-card__delete { background: var(--bg-white); }
+  .week-column.drop-target { box-shadow: 0 0 0 3px rgba(76, 111, 255, 0.18), var(--shadow-1); }
+  .kanban__days-select { background: var(--bg-white); }
+
+  .bottom-sheet-overlay { background: rgba(0, 0, 0, 0.55); }
+  .bottom-sheet { background: var(--bg-white); }
+  .form-input, .form-select { background: var(--bg-white); }
+
+  .modal { background: rgba(0, 0, 0, 0.55); }
+  .modal-content { background: var(--bg-white); }
+  .modal-content input { background: var(--bg-white); }
+  .modal-actions button { background: var(--bg-white); }
+  .modal-actions .primary { background: rgba(76, 111, 255, 0.10); border-color: rgba(76, 111, 255, 0.22); }
+  .members-search input { background: var(--bg-white); }
+  .member-item { background: var(--bg-white); }
+  .member-action-btn { background: var(--bg-white); }
+  .member-action-btn-danger { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.22); }
+  .owner-badge { background: rgba(76, 111, 255, 0.10); border-color: rgba(76, 111, 255, 0.18); }
+
+  .toast { background: var(--bg-white); }
+}

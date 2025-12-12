@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 
 from app import schemas
@@ -68,6 +69,12 @@ app.include_router(tasks.router)
 @app.get("/health")
 def healthcheck():
     return {"status": "ok"}
+
+@app.get("/miniapp", include_in_schema=False)
+def miniapp_redirect():
+    # Важно: без trailing slash браузер резолвит относительные ассеты как /styles.css, /app.js
+    # что ломает UI в Telegram WebView. Редиректим на /miniapp/
+    return RedirectResponse(url="/miniapp/", status_code=307)
 
 
 @app.post("/migrate")

@@ -4,7 +4,7 @@ const params = new URLSearchParams(window.location.search);
 // Debug режим только для разработки (проверка через параметр URL)
 const isDevelopment = params.get("dev") === "true";
 
-const APP_VERSION = "2025-12-12-uiux-debug-1";
+const APP_VERSION = "2025-12-12-uiux-2";
 
 function agentLog(payload) {
   try {
