@@ -60,7 +60,7 @@ class FamilyMemberRead(BaseModel):
 
 class TaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=120)
-    description: Optional[str]
+    description: Optional[str] = None
     date: date
     start_time: Optional[time]
     end_time: Optional[time]
