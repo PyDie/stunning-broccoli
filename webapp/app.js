@@ -246,6 +246,8 @@ const ui = {
   kanbanBoard: document.getElementById("kanban-board"),
   kanbanDaysSelect: document.getElementById("kanban-days-select"),
   taskList: document.getElementById("task-list"),
+  selectedDayLabel: document.getElementById("selected-day-label"),
+  btnAddTaskInline: document.getElementById("btn-add-task-inline"),
   scopeChips: document.getElementById("scope-chips"),
   btnBack: document.getElementById("btn-back"),
   btnForward: document.getElementById("btn-forward"),
@@ -472,6 +474,9 @@ function renderCalendar() {
   days.forEach((day) => {
     const cell = document.createElement("div");
     cell.className = "calendar-day";
+    if (formatISO(day) === formatISO(new Date())) {
+      cell.classList.add("today");
+    }
     if (day.getMonth() !== state.currentMonth.getMonth()) {
       cell.classList.add("outside");
     }
@@ -530,6 +535,9 @@ function renderTaskList() {
   const key = formatISO(state.selectedDate);
   const tasks = state.taskMap[key] || [];
   ui.taskList.innerHTML = "";
+  if (ui.selectedDayLabel) {
+    ui.selectedDayLabel.textContent = formatDateHuman(state.selectedDate);
+  }
   
   if (!tasks.length) {
     const empty = document.createElement("li");
@@ -993,6 +1001,11 @@ function setupListeners() {
   ui.familyModal.addEventListener("click", (e) => {
     if (e.target === ui.familyModal) closeFamilyModal();
   });
+
+  // Быстрое добавление задачи из заголовка дня
+  if (ui.btnAddTaskInline) {
+    ui.btnAddTaskInline.addEventListener("click", () => openTaskForm());
+  }
 
   // Обработка выбора группы
   if (ui.familySelect) {

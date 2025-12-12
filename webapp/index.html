@@ -58,6 +58,17 @@
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
         <div class="selected-day-tasks" id="selected-day-tasks">
+          <div class="selected-day-header">
+            <div class="selected-day-header__left">
+              <div class="selected-day-header__title">Задачи</div>
+              <div class="selected-day-header__subtitle" id="selected-day-label"></div>
+            </div>
+            <button class="selected-day-header__add" id="btn-add-task-inline" type="button" aria-label="Добавить задачу на выбранный день">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </button>
+          </div>
           <ul class="task-list" id="task-list"></ul>
         </div>
       </section>
